@@ -1,0 +1,46 @@
+/* Downloadseite hinter dem QR-Code - laeuft auf fremden Handys. */
+:root {
+  --ink: #14110f;
+  --paper: #f6f2ea;
+  --gold: #c8a25a;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 0 20px calc(env(safe-area-inset-bottom, 0px) + 32px);
+  background: var(--ink);
+  color: var(--paper);
+  font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.share {
+  max-width: 520px;
+  margin: 0 auto;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 32px);
+  text-align: center;
+}
+
+.share h1 { margin: 0; font-size: 24px; font-weight: 600; }
+.share__meta { margin: 4px 0 20px; opacity: 0.7; font-size: 15px; }
+
+.share__photo {
+  width: 100%;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.share__button {
+  display: block;
+  margin: 22px 0 12px;
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--gold);
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.share__hint { margin: 0; font-size: 14px; opacity: 0.7; }

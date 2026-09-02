@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14110f">
+<title>Galerie – Fotobox</title>
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<link rel="icon" href="/icons/icon-192.png">
+<link rel="stylesheet" href="/css/gallery.css">
+</head>
+<body>
+
+<header class="bar">
+  <div>
+    <h1 class="bar__title">Galerie</h1>
+    <p id="count" class="bar__meta">wird geladen …</p>
+  </div>
+  <nav class="bar__actions">
+    <a class="button" href="/">Zur Fotobox</a>
+    <a class="button button--primary" href="/api/export.zip">Alle als ZIP</a>
+  </nav>
+</header>
+
+<main>
+  <p id="empty" class="empty" hidden>Noch keine Aufnahmen. Zeit für das erste Foto!</p>
+  <ul id="grid" class="grid"></ul>
+</main>
+
+<script type="module" src="/js/gallery.js"></script>
+</body>
+</html>

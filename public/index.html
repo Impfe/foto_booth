@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#14110f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Fotobox">
+<title>Fotobox</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<link rel="icon" href="/icons/icon-192.png">
+<link rel="stylesheet" href="/css/booth.css">
+</head>
+<body data-state="loading">
+
+<video id="preview" class="preview" autoplay playsinline muted></video>
+<div class="scrim"></div>
+<div id="flash" class="flash"></div>
+
+<header class="topbar">
+  <div class="topbar__titles">
+    <h1 id="title" class="topbar__title">Fotobox</h1>
+    <p id="subtitle" class="topbar__subtitle" hidden></p>
+  </div>
+  <nav class="topbar__actions">
+    <button id="soundToggle" type="button" class="chip" aria-pressed="true">Ton</button>
+    <button id="flip" type="button" class="chip">Kamera</button>
+    <a href="/gallery" class="chip">Galerie</a>
+  </nav>
+</header>
+
+<p id="notice" class="notice" role="alert" hidden></p>
+
+<main class="stage stage--idle">
+  <div id="filters" class="filters" role="group" aria-label="Bildlook"></div>
+  <button id="shutter" type="button" class="shutter">
+    <span class="shutter__ring"></span>
+    <span class="shutter__label">Start</span>
+  </button>
+  <p id="hint" class="hint">Tippen und Pose halten</p>
+</main>
+
+<div class="stage stage--shooting">
+  <div id="countdown" class="countdown" aria-live="assertive"></div>
+  <div id="progress" class="progress" aria-hidden="true"></div>
+</div>
+
+<div class="stage stage--processing">
+  <div class="spinner" aria-hidden="true"></div>
+  <p class="hint">Streifen wird gebaut …</p>
+</div>
+
+<section class="stage stage--result">
+  <img id="resultImage" class="result__image" alt="Fertiger Fotostreifen">
+  <aside class="result__panel">
+    <img id="qr" class="result__qr" alt="QR-Code zum Herunterladen des Fotos" hidden>
+    <p id="qrHint" class="result__qrhint" hidden>Mit dem Handy scannen</p>
+    <p id="status" class="result__status" role="status"></p>
+    <button id="again" type="button" class="button button--primary">Nochmal</button>
+    <a id="download" class="button" download>Auf dem iPad speichern</a>
+  </aside>
+</section>
+
+<div class="stage stage--loading">
+  <div class="spinner" aria-hidden="true"></div>
+  <p class="hint">Kamera wird gestartet …</p>
+</div>
+
+<script type="module" src="/js/booth.js"></script>
+</body>
+</html>

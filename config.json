@@ -1,0 +1,16 @@
+{
+  "eventTitle": "Unsere Fotobox",
+  "eventSubtitle": "",
+  "shots": 4,
+  "countdownSeconds": 3,
+  "pauseBetweenShotsMs": 1200,
+  "reviewSeconds": 60,
+  "defaultFilter": "original",
+  "mirrorPreview": true,
+  "showQrCode": true,
+  "strip": {
+    "background": "#ffffff",
+    "foreground": "#14110f",
+    "accent": "#c8a25a"
+  }
+}
