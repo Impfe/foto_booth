@@ -18,5 +18,8 @@
     "archiver": "^7.0.1",
     "express": "^4.21.2",
     "qrcode": "^1.5.4"
+  },
+  "overrides": {
+    "qs": "^6.16.0"
   }
 }
