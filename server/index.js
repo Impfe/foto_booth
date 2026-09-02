@@ -124,7 +124,10 @@ app.get('/p/:id', async (req, res, next) => {
     const meta = await store.get(req.params.id);
     if (!meta) return res.status(404).send('Dieses Foto gibt es (nicht mehr).');
     const booth = loadBoothConfig();
-    const created = new Date(meta.createdAt).toLocaleString('de-DE');
+    const created = new Date(meta.createdAt).toLocaleString('de-DE', {
+      dateStyle: 'long',
+      timeStyle: 'short',
+    });
     res.type('html').send(`<!doctype html>
 <html lang="de">
 <head>

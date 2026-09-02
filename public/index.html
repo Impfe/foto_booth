@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
-<meta name="theme-color" content="#14110f">
+<meta name="theme-color" content="#0e0c0b">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Fotobox">
@@ -17,6 +17,8 @@
 
 <video id="preview" class="preview" autoplay playsinline muted></video>
 <div class="scrim"></div>
+<div class="grain"></div>
+<div class="frame"></div>
 <div id="flash" class="flash"></div>
 
 <header class="topbar">
@@ -43,17 +45,26 @@
 </main>
 
 <div class="stage stage--shooting">
-  <div id="countdown" class="countdown" aria-live="assertive"></div>
+  <div id="countdownRing" class="countdown">
+    <svg class="countdown__ring" viewBox="0 0 320 320" aria-hidden="true">
+      <circle class="countdown__track" cx="160" cy="160" r="150"></circle>
+      <circle class="countdown__progress" cx="160" cy="160" r="150"></circle>
+    </svg>
+    <span id="countdown" class="countdown__value"></span>
+  </div>
+  <p id="shotLabel" class="shot-label"></p>
   <div id="progress" class="progress" aria-hidden="true"></div>
 </div>
 
 <div class="stage stage--processing">
   <div class="spinner" aria-hidden="true"></div>
-  <p class="hint">Streifen wird gebaut …</p>
+  <p class="hint">Streifen wird gebaut</p>
 </div>
 
 <section class="stage stage--result">
-  <img id="resultImage" class="result__image" alt="Fertiger Fotostreifen">
+  <div class="result__print">
+    <img id="resultImage" class="result__image" alt="Fertiger Fotostreifen">
+  </div>
   <aside class="result__panel">
     <img id="qr" class="result__qr" alt="QR-Code zum Herunterladen des Fotos" hidden>
     <p id="qrHint" class="result__qrhint" hidden>Mit dem Handy scannen</p>
@@ -65,7 +76,7 @@
 
 <div class="stage stage--loading">
   <div class="spinner" aria-hidden="true"></div>
-  <p class="hint">Kamera wird gestartet …</p>
+  <p class="hint">Kamera wird gestartet</p>
 </div>
 
 <script type="module" src="/js/booth.js"></script>

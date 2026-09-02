@@ -14,6 +14,8 @@ const els = {
   shutter: document.getElementById('shutter'),
   hint: document.getElementById('hint'),
   countdown: document.getElementById('countdown'),
+  countdownRing: document.getElementById('countdownRing'),
+  shotLabel: document.getElementById('shotLabel'),
   progress: document.getElementById('progress'),
   result: document.getElementById('resultImage'),
   qr: document.getElementById('qr'),
@@ -92,15 +94,21 @@ function renderProgress(current, total) {
   );
 }
 
+function setShotLabel(index, total) {
+  els.shotLabel.textContent = total > 1 ? `Foto ${index + 1} von ${total}` : 'Gleich geht\u2019s los';
+}
+
 async function runCountdown(seconds) {
   for (let value = seconds; value > 0; value--) {
     els.countdown.textContent = String(value);
-    els.countdown.classList.remove('is-pulsing');
-    void els.countdown.offsetWidth; // Neustart der Animation erzwingen
-    els.countdown.classList.add('is-pulsing');
+    // Klasse kurz abwerfen, damit Ring und Ziffer die Animation neu starten.
+    els.countdownRing.classList.remove('is-running');
+    void els.countdownRing.offsetWidth;
+    els.countdownRing.classList.add('is-running');
     sound.tick();
     await wait(1000);
   }
+  els.countdownRing.classList.remove('is-running');
   els.countdown.textContent = '';
 }
 
@@ -165,6 +173,7 @@ async function runSession() {
     setState('shooting');
     for (let index = 0; index < shots; index++) {
       renderProgress(index, shots);
+      setShotLabel(index, shots);
       await runCountdown(Math.max(1, Number(state.config.countdownSeconds) || 3));
       await flash();
       frames.push(camera.captureFrame());
@@ -218,6 +227,10 @@ async function init() {
   }
 
   state.filterId = state.config.defaultFilter || 'original';
+  // Der Akzentton des Streifens faerbt auch die Bedienoberflaeche.
+  if (state.config.strip?.accent) {
+    document.documentElement.style.setProperty('--gold', state.config.strip.accent);
+  }
   els.title.textContent = state.config.eventTitle || 'Fotobox';
   els.subtitle.textContent = state.config.eventSubtitle || '';
   els.subtitle.hidden = !state.config.eventSubtitle;
