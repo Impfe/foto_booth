@@ -40,17 +40,40 @@ fi
 
 SAN="DNS:localhost,IP:127.0.0.1"
 for address in ${ADDRESSES[@]+"${ADDRESSES[@]}"}; do
-  [ -n "$address" ] && SAN="$SAN,IP:$address"
+  SAN="$SAN,IP:$address"
 done
 
-openssl req -x509 -newkey rsa:2048 -sha256 -nodes \
+# Die Erweiterungen kommen aus einer temporaeren Konfiguration statt aus
+# -addext: macOS liefert LibreSSL aus, das diese Option je nach Version nicht
+# kennt. Ueber die Konfigurationsdatei funktioniert es mit beiden.
+CONFIG="$(mktemp)"
+trap 'rm -f "$CONFIG"' EXIT
+cat > "$CONFIG" <<CONF
+[req]
+distinguished_name = dn
+prompt = no
+x509_extensions = v3_req
+
+[dn]
+CN = Fotobox
+
+[v3_req]
+subjectAltName = $SAN
+basicConstraints = critical,CA:TRUE
+keyUsage = critical, digitalSignature, keyCertSign
+CONF
+
+LOG="$(mktemp)"
+trap 'rm -f "$CONFIG" "$LOG"' EXIT
+if ! openssl req -x509 -newkey rsa:2048 -sha256 -nodes \
   -days "$DAYS" \
   -keyout "$CERT_DIR/key.pem" \
   -out "$CERT_DIR/cert.pem" \
-  -subj "/CN=Fotobox" \
-  -addext "subjectAltName=$SAN" \
-  -addext "basicConstraints=critical,CA:TRUE" \
-  >/dev/null 2>&1
+  -config "$CONFIG" >"$LOG" 2>&1; then
+  echo "openssl konnte kein Zertifikat erzeugen:" >&2
+  cat "$LOG" >&2
+  exit 1
+fi
 
 chmod 600 "$CERT_DIR/key.pem"
 
