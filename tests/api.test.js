@@ -15,12 +15,28 @@ const PIXEL_JPEG =
 const running = [];
 after(() => running.forEach((child) => child.kill()));
 
-/** Startet den Server auf einem eigenen Port mit leerem Datenverzeichnis. */
-async function startServer(port, env = {}) {
+/**
+ * Startet den Server auf einem eigenen Port, mit leerem Datenverzeichnis und
+ * einer eigenen Konfiguration - die Tests duerfen nicht davon abhaengen, was
+ * gerade in der config.json des Projekts steht.
+ */
+async function startServer(port, env = {}, config = {}) {
   const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fotobox-api-'));
+  const configFile = path.join(dataDir, 'config.json');
+  await fs.writeFile(
+    configFile,
+    JSON.stringify({ eventTitle: 'Testfotobox', shots: 3, ...config }),
+  );
   const child = spawn(process.execPath, ['server/index.js'], {
     cwd: ROOT,
-    env: { ...process.env, PORT: String(port), DATA_DIR: dataDir, TLS_CERT: '/dev/null/x', ...env },
+    env: {
+      ...process.env,
+      PORT: String(port),
+      DATA_DIR: dataDir,
+      CONFIG_FILE: configFile,
+      TLS_CERT: '/dev/null/x',
+      ...env,
+    },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   running.push(child);
@@ -100,4 +116,77 @@ test('GALLERY_PASSWORD schuetzt Galerie und Export, nicht aber die Booth', async
     headers: { Authorization: `Basic ${Buffer.from('booth:falsch').toString('base64')}` },
   });
   assert.equal(wrong.status, 401);
+});
+
+test('Admin-PIN sperrt die Galerie und gibt sie nach Eingabe frei', async () => {
+  const { base } = await startServer(8394, { ADMIN_PIN: '4711' });
+
+  const config = await (await fetch(`${base}/api/config`)).json();
+  assert.equal(config.adminRequired, true);
+  assert.equal('adminPin' in config, false, 'Die PIN darf den Browser nie erreichen');
+
+  const status = await (await fetch(`${base}/api/admin/status`)).json();
+  assert.deepEqual(status, { enabled: true, unlocked: false, pinLength: 4, pinConfigured: true });
+
+  assert.equal((await fetch(`${base}/api/photos`)).status, 401);
+  assert.equal((await fetch(`${base}/api/export.zip`)).status, 401);
+  // Fotografieren muss auch gesperrt weiterhin gehen.
+  assert.equal((await fetch(`${base}/gallery`)).status, 200);
+
+  const unlock = (pin) =>
+    fetch(`${base}/api/admin/unlock`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin }),
+    });
+
+  assert.equal((await unlock('0000')).status, 401);
+  assert.equal((await unlock('47110')).status, 401);
+
+  const opened = await unlock('4711');
+  assert.equal(opened.status, 200);
+  const cookie = opened.headers.get('set-cookie').split(';')[0];
+  assert.match(cookie, /^booth_admin=[a-f0-9]{48}$/);
+
+  const photos = await fetch(`${base}/api/photos`, { headers: { cookie } });
+  assert.equal(photos.status, 200);
+  assert.equal((await fetch(`${base}/api/export.zip`, { headers: { cookie } })).status, 200);
+
+  const after = await (await fetch(`${base}/api/admin/status`, { headers: { cookie } })).json();
+  assert.equal(after.unlocked, true);
+
+  await fetch(`${base}/api/admin/lock`, { method: 'POST', headers: { cookie } });
+  // Das Token bleibt gueltig, bis der Server neu startet - die Sperre wirkt im
+  // Browser ueber das geloeschte Cookie. Ohne Cookie ist wieder zu.
+  assert.equal((await fetch(`${base}/api/photos`)).status, 401);
+});
+
+test('zu viele Fehlversuche werden abgewiesen', async () => {
+  const { base } = await startServer(8395, { ADMIN_PIN: '4711' });
+  const unlock = () =>
+    fetch(`${base}/api/admin/unlock`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin: '0000' }),
+    });
+
+  for (let attempt = 0; attempt < 10; attempt++) {
+    assert.equal((await unlock()).status, 401);
+  }
+  assert.equal((await unlock()).status, 429);
+  // Auch die richtige PIN kommt jetzt nicht mehr durch.
+  const correct = await fetch(`${base}/api/admin/unlock`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pin: '4711' }),
+  });
+  assert.equal(correct.status, 429);
+});
+
+test('ohne PIN und Passwort bleibt alles offen', async () => {
+  const { base } = await startServer(8396);
+  const status = await (await fetch(`${base}/api/admin/status`)).json();
+  assert.equal(status.enabled, false);
+  assert.equal(status.unlocked, true);
+  assert.equal((await fetch(`${base}/api/photos`)).status, 200);
 });

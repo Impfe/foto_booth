@@ -1,7 +1,10 @@
 // Uebersicht aller Aufnahmen: ansehen, einzeln loeschen, alles exportieren.
+import { fetchAdminState, lockAdmin, openPinPad } from './admin.js';
+
 const grid = document.getElementById('grid');
 const count = document.getElementById('count');
 const empty = document.getElementById('empty');
+const lock = document.getElementById('lock');
 
 function formatDateTime(iso) {
   return new Date(iso).toLocaleString('de-DE', {
@@ -38,7 +41,31 @@ function card(photo) {
     const response = await fetch(`/api/photos/${photo.id}`, { method: 'DELETE' });
     if (response.ok) {
       item.remove();
-      await load();
+      await /**
+ * Im Kiosk-Betrieb ist die Galerie das Erste, was ein neugieriger Gast
+ * aufruft - also erst die PIN, dann die Bilder.
+ */
+async function start() {
+  const admin = await fetchAdminState();
+  lock.hidden = !admin.enabled || !admin.unlocked;
+  if (admin.enabled && !admin.unlocked) {
+    count.textContent = 'gesperrt';
+    if (admin.pinConfigured) {
+      openPinPad({ pinLength: admin.pinLength, dismissible: false, onSuccess: start });
+    } else {
+      count.textContent = 'Zugang nur mit Passwort';
+    }
+    return;
+  }
+  await load();
+}
+
+lock.addEventListener('click', async () => {
+  await lockAdmin();
+  window.location.href = '/';
+});
+
+start();
     } else {
       alert('Löschen fehlgeschlagen.');
     }
@@ -64,4 +91,28 @@ async function load() {
   }
 }
 
-load();
+/**
+ * Im Kiosk-Betrieb ist die Galerie das Erste, was ein neugieriger Gast
+ * aufruft - also erst die PIN, dann die Bilder.
+ */
+async function start() {
+  const admin = await fetchAdminState();
+  lock.hidden = !admin.enabled || !admin.unlocked;
+  if (admin.enabled && !admin.unlocked) {
+    count.textContent = 'gesperrt';
+    if (admin.pinConfigured) {
+      openPinPad({ pinLength: admin.pinLength, dismissible: false, onSuccess: start });
+    } else {
+      count.textContent = 'Zugang nur mit Passwort';
+    }
+    return;
+  }
+  await load();
+}
+
+lock.addEventListener('click', async () => {
+  await lockAdmin();
+  window.location.href = '/';
+});
+
+start();

@@ -1,0 +1,121 @@
+/* PIN-Feld fuer den Admin-Zugang - wird auf Booth und Galerie eingeblendet. */
+.pinpad {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(8, 7, 6, 0.86);
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  animation: pinpad-in 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@keyframes pinpad-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.pinpad__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  width: min(360px, 100%);
+  padding: 34px 30px 26px;
+  border: 1px solid rgba(247, 243, 236, 0.14);
+  border-radius: 26px;
+  background: #17130f;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+  color: #f7f3ec;
+  font: 16px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  text-align: center;
+}
+
+.pinpad__card.is-wrong {
+  animation: shake 400ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+@keyframes shake {
+  10%, 90% { transform: translateX(-2px); }
+  20%, 80% { transform: translateX(4px); }
+  30%, 50%, 70% { transform: translateX(-7px); }
+  40%, 60% { transform: translateX(7px); }
+}
+
+.pinpad__title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(247, 243, 236, 0.65);
+}
+
+.pinpad__dots {
+  display: flex;
+  gap: 16px;
+}
+
+.pinpad__dot {
+  width: 14px;
+  height: 14px;
+  border: 1px solid rgba(247, 243, 236, 0.45);
+  border-radius: 50%;
+  transition: all 160ms ease-out;
+}
+
+.pinpad__dot.is-filled {
+  background: var(--gold, #c8a25a);
+  border-color: var(--gold, #c8a25a);
+  transform: scale(1.15);
+}
+
+.pinpad__error {
+  margin: 0;
+  min-height: 1.3em;
+  font-size: 14px;
+  color: #e88b8b;
+}
+
+.pinpad__keys {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  width: 100%;
+}
+
+.pinpad__key {
+  min-height: 66px;
+  border: 1px solid rgba(247, 243, 236, 0.14);
+  border-radius: 18px;
+  background: rgba(247, 243, 236, 0.05);
+  color: inherit;
+  font: inherit;
+  font-size: 26px;
+  font-weight: 300;
+  transition: transform 120ms ease-out, background 160ms ease-out;
+}
+
+.pinpad__key:active {
+  transform: scale(0.95);
+  background: rgba(247, 243, 236, 0.14);
+}
+
+.pinpad__close {
+  padding: 8px 16px;
+  border: none;
+  background: none;
+  color: rgba(247, 243, 236, 0.6);
+  font: inherit;
+  font-size: 15px;
+  text-decoration: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pinpad,
+  .pinpad__card.is-wrong {
+    animation: none;
+  }
+}

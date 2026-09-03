@@ -36,6 +36,12 @@ body {
   touch-action: manipulation;
 }
 
+/* Eigene display-Regeln stechen das Browser-Standardverhalten von [hidden]
+   aus - deshalb hier ausdruecklich. */
+[hidden] {
+  display: none !important;
+}
+
 .preview {
   position: fixed;
   inset: 0;
@@ -182,6 +188,16 @@ body {
 
 .chip[aria-pressed="false"] {
   opacity: 0.4;
+}
+
+/* Der Admin-Knopf soll da sein, aber niemanden einladen. */
+.chip--quiet {
+  border-color: rgba(247, 243, 236, 0.1);
+  background: rgba(14, 12, 11, 0.32);
+  color: rgba(247, 243, 236, 0.42);
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .notice {

@@ -9,6 +9,7 @@
   },
   "scripts": {
     "start": "node --env-file-if-exists=.env server/index.js",
+    "booth": "bash scripts/start-booth.sh",
     "dev": "node --watch --env-file-if-exists=.env server/index.js",
     "cert": "bash scripts/gen-cert.sh",
     "icons": "node scripts/gen-icons.mjs",

@@ -23,14 +23,20 @@ sie wie eine native App im Vollbild.
   scannt, landet auf einer Downloadseite für genau dieses Foto
 - **Galerie & Export** – alle Aufnahmen des Abends unter `/gallery`, einzeln
   löschbar, gesammelt als ZIP herunterladbar
+- **Kiosk-Betrieb** – Gäste sehen nur den Auslöser; Galerie, Kameraseite und Ton
+  liegen hinter einer PIN
 
 ## Schnellstart
 
 ```bash
 npm install
 npm run cert     # selbstsigniertes HTTPS-Zertifikat (siehe unten, warum)
-npm start
+npm run booth    # startet die Fotobox für den Abend
 ```
+
+`npm run booth` ist die Variante für den Einsatz: Sie hält den Rechner wach
+(`caffeinate`) und startet den Server neu, falls er abstürzt. Zum Entwickeln
+tut es `npm start` beziehungsweise `npm run dev`.
 
 Der Server nennt beim Start alle Adressen, unter denen die Fotobox erreichbar
 ist, zum Beispiel:
@@ -113,6 +119,8 @@ Wird bei jedem Aufruf frisch gelesen, ein Neustart des Servers ist nicht nötig.
 | `defaultFilter` | Vorausgewählter Look | `"original"` |
 | `mirrorPreview` | Vorschau spiegeln (das Foto selbst nie) | `true` |
 | `showQrCode` | QR-Code nach dem Shooting anzeigen | `true` |
+| `kioskMode` | Bedienelemente vor Gästen verbergen (siehe unten) | `true` |
+| `adminPin` | PIN für den Admin-Zugang; leer = kein Schutz | `"1608"` |
 | `strip.style` | Vorlage des Streifens: `classic`, `elegant` oder `midnight` | `"classic"` |
 | `strip.accent` | Akzentfarbe für Streifen **und** Bedienoberfläche | `"#c8a25a"` |
 | `strip.background` / `strip.foreground` | Papier- und Schriftfarbe; ohne Angabe aus der Vorlage | — |
@@ -127,7 +135,30 @@ Wird bei jedem Aufruf frisch gelesen, ein Neustart des Servers ist nicht nötig.
 | `DATA_DIR` | Wohin die Fotos geschrieben werden (Standard `./data`) |
 | `TLS_CERT` / `TLS_KEY` | Zertifikat und Key; fehlen sie, startet der Server ohne HTTPS |
 | `PUBLIC_URL` | Feste Adresse für die QR-Codes; leer = aus der Anfrage abgeleitet |
-| `GALLERY_PASSWORD` | Schützt `/gallery`, die Foto-Liste und den ZIP-Export |
+| `ADMIN_PIN` | Überschreibt `adminPin` aus der `config.json`; leer gesetzt hebt sie auf |
+| `GALLERY_PASSWORD` | Zusätzlicher Passwortschutz (Basic Auth) für Galerie und Export |
+
+## Kiosk-Betrieb und Admin-Zugang
+
+Mit `kioskMode: true` sieht die Feiergesellschaft nur Filterleiste und
+Auslöser. Galerie, Kamerawechsel und Ton verschwinden hinter einem unauffälligen
+**Admin**-Knopf oben rechts; ein Tippen darauf öffnet ein PIN-Feld. Nach
+richtiger Eingabe sind die Bedienelemente da, ein **Sperren**-Knopf schließt
+wieder ab, und nach fünf Minuten ohne Bedienung sperrt die Booth von selbst.
+
+Wer die Adresse der Galerie direkt eintippt, landet ebenfalls beim PIN-Feld –
+die Fotoliste, das Löschen und der ZIP-Export sind auf dem Server abgesichert,
+nicht nur in der Oberfläche.
+
+Die PIN verlässt den Server nie: Der Browser schickt die Eingabe hin und bekommt
+im Erfolgsfall ein Sitzungscookie (acht Stunden, `HttpOnly`). Nach zehn
+Fehlversuchen ist für eine Viertelstunde Schluss, und ein Serverneustart sperrt
+alle offenen Sitzungen.
+
+Zur Einordnung: Das ist ein Riegel gegen neugierige Gäste, kein Schutz gegen
+jemanden, der es ernsthaft darauf anlegt. Eine vierstellige PIN im eigenen WLAN
+ist genau so viel Sicherheit, wie eine Fotobox braucht. Wer die Booth öffentlich
+erreichbar macht, sollte zusätzlich `GALLERY_PASSWORD` setzen.
 
 ## Betrieb
 
@@ -145,12 +176,13 @@ erratbare) ID abrufbar, die Übersicht bleibt damit privat.
 
 ```bash
 npm run dev      # Server mit Auto-Reload
-npm test         # Tests für Speicher und HTTP-Schnittstelle
+npm test         # Tests für Speicher, HTTP-Schnittstelle und Admin-Zugang
 npm run icons    # App-Icons neu erzeugen
 ```
 
 ```
 server/          Express-Server: Upload, Galerie, QR-Codes, ZIP-Export
+  admin.js       PIN-Prüfung, Sitzungscookie, Sperre für die Galerie
   config.js      Konfiguration aus config.json und Umgebung
   storage.js     Ablage der Aufnahmen als Datei + Metadaten
 public/          Alles, was im Browser läuft (kein Build-Schritt)
@@ -158,7 +190,8 @@ public/          Alles, was im Browser läuft (kein Build-Schritt)
   js/camera.js   Kamerazugriff und Einzelbildaufnahme
   js/filters.js  Bildlooks für Vorschau und fertiges Foto
   js/strip.js    Montage des Fotostreifens auf dem Canvas
-scripts/         Zertifikat und Icons erzeugen
+  js/admin.js    PIN-Feld für den Admin-Zugang
+scripts/         Start, Zertifikat und Icons
 tests/           Tests (node --test, ohne weitere Abhängigkeiten)
 ```
 
@@ -186,6 +219,10 @@ Schrift im Hintergrund falsch herum. Wer beides gespiegelt will, setzt
 
 **Der Streifen ist zu lang/zu kurz.** `shots` in `config.json` anpassen; das
 Seitenverhältnis der Einzelbilder kommt von der Kamera und wird übernommen.
+
+**Ich komme nicht mehr in die Galerie.** PIN vergessen? Sie steht in
+`config.json` unter `adminPin`. Nach zehn Fehlversuchen sperrt der Server für
+15 Minuten – ein Neustart des Servers hebt die Sperre sofort auf.
 
 **Die Vorschau sieht anders aus als das fertige Foto.** Die Live-Vorschau nutzt
 CSS-Filter, das fertige Bild wird Pixel für Pixel gerechnet. Farbstimmung und

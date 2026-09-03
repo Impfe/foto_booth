@@ -8,6 +8,8 @@
   "defaultFilter": "original",
   "mirrorPreview": true,
   "showQrCode": true,
+  "kioskMode": true,
+  "adminPin": "1608",
   "strip": {
     "style": "classic",
     "accent": "#c8a25a"

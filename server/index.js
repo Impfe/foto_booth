@@ -1,20 +1,24 @@
-import fs from 'node:fs';
 import http from 'node:http';
 import https from 'node:https';
 import os from 'node:os';
 import path from 'node:path';
-import crypto from 'node:crypto';
 
 import archiver from 'archiver';
 import express from 'express';
 import QRCode from 'qrcode';
 
+import { AdminAccess } from './admin.js';
 import { ROOT, loadBoothConfig, loadServerConfig } from './config.js';
 import { PhotoStore } from './storage.js';
 
 const server = loadServerConfig();
 const store = new PhotoStore(server.dataDir);
 await store.init();
+
+const admin = new AdminAccess({
+  loadConfig: loadBoothConfig,
+  galleryPassword: server.galleryPassword,
+});
 
 const app = express();
 app.disable('x-powered-by');
@@ -34,27 +38,46 @@ function escapeHtml(value) {
 }
 
 /**
- * Schuetzt Galerie und Export, sobald GALLERY_PASSWORD gesetzt ist. Ohne
- * Passwort bleibt alles offen - im privaten Event-WLAN meist gewollt.
+ * Die Booth-Konfiguration, wie sie der Browser sehen darf: ohne die PIN,
+ * dafuer mit der Information, ob ueberhaupt eine gesetzt ist.
  */
-function requireGalleryAuth(req, res, next) {
-  if (!server.galleryPassword) return next();
-  const header = req.get('authorization') || '';
-  const [scheme, encoded] = header.split(' ');
-  if (scheme === 'Basic' && encoded) {
-    const [, ...rest] = Buffer.from(encoded, 'base64').toString('utf8').split(':');
-    const given = Buffer.from(rest.join(':'));
-    const expected = Buffer.from(server.galleryPassword);
-    if (given.length === expected.length && crypto.timingSafeEqual(given, expected)) return next();
-  }
-  res.set('WWW-Authenticate', 'Basic realm="Fotobox-Galerie", charset="UTF-8"');
-  return res.status(401).send('Zugang nur mit Passwort.');
+function publicBoothConfig() {
+  const { adminPin, ...rest } = loadBoothConfig();
+  return { ...rest, adminRequired: admin.isEnabled };
 }
+
+const requireAdmin = admin.middleware();
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
 app.get('/api/config', (_req, res) => {
-  res.json(loadBoothConfig());
+  res.json(publicBoothConfig());
+});
+
+app.get('/api/admin/status', (req, res) => {
+  res.json(admin.status(req));
+});
+
+app.post('/api/admin/unlock', (req, res) => {
+  const ip = req.ip || 'unbekannt';
+  if (!admin.pin) {
+    return res.status(409).json({ error: 'Es ist keine Admin-PIN eingerichtet.' });
+  }
+  if (admin.tooManyAttempts(ip)) {
+    return res.status(429).json({ error: 'Zu viele Fehlversuche. Bitte spaeter erneut versuchen.' });
+  }
+  const given = String(req.body?.pin ?? '');
+  if (given.length !== admin.pin.length || !admin.isCorrectPin(given)) {
+    admin.noteFailure(ip);
+    return res.status(401).json({ error: 'Falsche PIN.' });
+  }
+  admin.setCookie(req, res);
+  res.json({ unlocked: true });
+});
+
+app.post('/api/admin/lock', (_req, res) => {
+  admin.clearCookie(res);
+  res.json({ unlocked: false });
 });
 
 app.post('/api/photos', async (req, res, next) => {
@@ -71,7 +94,7 @@ app.post('/api/photos', async (req, res, next) => {
   }
 });
 
-app.get('/api/photos', requireGalleryAuth, async (_req, res, next) => {
+app.get('/api/photos', requireAdmin, async (_req, res, next) => {
   try {
     const photos = await store.list();
     res.json(photos.map((meta) => ({ ...meta, url: `/media/${meta.id}` })));
@@ -80,7 +103,7 @@ app.get('/api/photos', requireGalleryAuth, async (_req, res, next) => {
   }
 });
 
-app.delete('/api/photos/:id', requireGalleryAuth, async (req, res, next) => {
+app.delete('/api/photos/:id', requireAdmin, async (req, res, next) => {
   try {
     const removed = await store.remove(req.params.id);
     if (!removed) return res.status(404).json({ error: 'Unbekanntes Foto' });
@@ -102,7 +125,7 @@ app.get('/media/:id', async (req, res, next) => {
   }
 });
 
-app.get('/api/export.zip', requireGalleryAuth, async (_req, res, next) => {
+app.get('/api/export.zip', requireAdmin, async (_req, res, next) => {
   try {
     const photos = await store.list();
     const stamp = new Date().toISOString().slice(0, 10);
@@ -155,7 +178,9 @@ app.get('/p/:id', async (req, res, next) => {
   }
 });
 
-app.get('/gallery', requireGalleryAuth, (_req, res) => {
+app.get('/gallery', (req, res, next) => {
+  // Mit Passwortschutz fragt schon der Server; mit PIN uebernimmt das die Seite.
+  if (server.galleryPassword && !admin.isUnlocked(req)) return requireAdmin(req, res, next);
   res.sendFile(path.join(ROOT, 'public', 'gallery.html'));
 });
 

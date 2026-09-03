@@ -1,4 +1,5 @@
 // Ablaufsteuerung der Fotobox: Vorschau -> Countdown -> Serie -> Streifen -> QR-Code.
+import { fetchAdminState, lockAdmin, openPinPad } from './admin.js';
 import { Camera } from './camera.js';
 import { FILTERS, getFilter } from './filters.js';
 import { composeStrip } from './strip.js';
@@ -25,12 +26,17 @@ const els = {
   download: document.getElementById('download'),
   flip: document.getElementById('flip'),
   soundToggle: document.getElementById('soundToggle'),
+  galleryLink: document.getElementById('galleryLink'),
+  admin: document.getElementById('admin'),
+  lock: document.getElementById('lock'),
   notice: document.getElementById('notice'),
 };
 
 const camera = new Camera(els.video);
 const state = {
   config: null,
+  admin: { enabled: false, unlocked: true, pinLength: 4, pinConfigured: false },
+  relockTimer: null,
   filterId: 'original',
   busy: false,
   reviewTimer: null,
@@ -218,6 +224,47 @@ async function runSession() {
   }
 }
 
+/**
+ * Im Kiosk-Betrieb sieht die Feiergesellschaft nur den Ausloeser. Galerie,
+ * Kameraseite und Ton liegen hinter der PIN - sonst raeumt irgendwann jemand
+ * versehentlich die Fotos des Abends weg.
+ */
+function updateChrome() {
+  const kiosk = Boolean(state.config?.kioskMode) && state.admin.enabled;
+  const open = !kiosk || state.admin.unlocked;
+  els.admin.hidden = open;
+  els.lock.hidden = !(kiosk && state.admin.unlocked);
+  for (const element of [els.soundToggle, els.flip, els.galleryLink]) element.hidden = !open;
+}
+
+/** Nach dem Entsperren wieder zusperren, falls niemand mehr etwas tut. */
+function scheduleRelock() {
+  clearTimeout(state.relockTimer);
+  state.relockTimer = setTimeout(relock, 5 * 60 * 1000);
+}
+
+async function relock() {
+  clearTimeout(state.relockTimer);
+  await lockAdmin();
+  state.admin = await fetchAdminState();
+  updateChrome();
+}
+
+async function openAdmin() {
+  if (!state.admin.pinConfigured) {
+    window.location.href = '/gallery';
+    return;
+  }
+  openPinPad({
+    pinLength: state.admin.pinLength,
+    onSuccess: async () => {
+      state.admin = await fetchAdminState();
+      updateChrome();
+      scheduleRelock();
+    },
+  });
+}
+
 async function init() {
   try {
     state.config = await fetch('/api/config').then((response) => response.json());
@@ -240,6 +287,12 @@ async function init() {
   els.hint.textContent =
     shots > 1 ? `${shots} Fotos hintereinander – tippen und Pose halten` : 'Tippen und Pose halten';
 
+  state.admin = await fetchAdminState();
+  if (state.config.kioskMode && !state.admin.enabled) {
+    console.warn('Kiosk-Modus ohne Admin-PIN - die Bedienelemente bleiben sichtbar.');
+  }
+  updateChrome();
+
   renderFilters();
   applyPreviewFilter();
   renderProgress(0, shots);
@@ -258,6 +311,8 @@ async function init() {
       showNotice(err.message);
     }
   });
+  els.admin.addEventListener('click', openAdmin);
+  els.lock.addEventListener('click', relock);
   els.soundToggle.addEventListener('click', () => {
     sound.unlock();
     els.soundToggle.setAttribute('aria-pressed', String(sound.toggle()));

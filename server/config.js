@@ -14,6 +14,8 @@ const DEFAULTS = {
   defaultFilter: 'original',
   mirrorPreview: true,
   showQrCode: true,
+  kioskMode: false,
+  adminPin: '',
   strip: { style: 'classic', accent: '#c8a25a' },
 };
 
@@ -37,7 +39,12 @@ export function loadBoothConfig() {
     ? path.resolve(ROOT, process.env.CONFIG_FILE)
     : path.join(ROOT, 'config.json');
   const user = readJson(file);
-  return { ...DEFAULTS, ...user, strip: { ...DEFAULTS.strip, ...(user.strip || {}) } };
+  const merged = { ...DEFAULTS, ...user, strip: { ...DEFAULTS.strip, ...(user.strip || {}) } };
+  // ADMIN_PIN aus der Umgebung schlaegt die Datei - praktisch, wenn die PIN
+  // nicht im Repository stehen soll.
+  // Leer gesetzt hebt die PIN aus der Datei ausdruecklich auf.
+  if (process.env.ADMIN_PIN !== undefined) merged.adminPin = process.env.ADMIN_PIN;
+  return { ...merged, adminPin: String(merged.adminPin || '') };
 }
 
 /** Server-Einstellungen kommen ausschliesslich aus der Umgebung (.env / Shell). */

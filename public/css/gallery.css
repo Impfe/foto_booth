@@ -21,6 +21,12 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Eigene display-Regeln stechen das Browser-Standardverhalten von [hidden]
+   aus - deshalb hier ausdruecklich. */
+[hidden] {
+  display: none !important;
+}
+
 .bar {
   position: sticky;
   top: 0;

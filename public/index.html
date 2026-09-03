@@ -12,6 +12,7 @@
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
 <link rel="icon" href="/icons/icon-192.png">
 <link rel="stylesheet" href="/css/booth.css">
+<link rel="stylesheet" href="/css/admin.css">
 </head>
 <body data-state="loading">
 
@@ -27,9 +28,11 @@
     <p id="subtitle" class="topbar__subtitle" hidden></p>
   </div>
   <nav class="topbar__actions">
+    <button id="admin" type="button" class="chip chip--quiet" hidden>Admin</button>
     <button id="soundToggle" type="button" class="chip" aria-pressed="true">Ton</button>
     <button id="flip" type="button" class="chip">Kamera</button>
-    <a href="/gallery" class="chip">Galerie</a>
+    <a id="galleryLink" href="/gallery" class="chip">Galerie</a>
+    <button id="lock" type="button" class="chip" hidden>Sperren</button>
   </nav>
 </header>
 
