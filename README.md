@@ -13,9 +13,12 @@ sie wie eine native App im Vollbild.
 - **Countdown & Fotostreifen** – konfigurierbare Anzahl Aufnahmen, Countdown mit
   Ton und Blitz-Effekt, automatisch montiert zum klassischen Streifen mit
   Event-Titel und Datum
-- **Filter & Branding** – Original, S/W, Sepia, Vintage, Kühl, Warm; Live in der
+- **Filter & Branding** – Original, S/W, Sepia, Vintage, Kühl, Warm; live in der
   Vorschau, identisch im fertigen Bild. Titel, Untertitel und Farben kommen aus
   `config.json`
+- **Drei Streifen-Vorlagen** – `classic` (weißer Automatenstreifen), `elegant`
+  (Büttenpapier mit doppelter Keyline) und `midnight` (dunkles Papier für
+  Abendveranstaltungen), umschaltbar über `strip.style`
 - **QR-Code zum Mitnehmen** – nach jedem Shooting erscheint ein QR-Code; wer ihn
   scannt, landet auf einer Downloadseite für genau dieses Foto
 - **Galerie & Export** – alle Aufnahmen des Abends unter `/gallery`, einzeln
@@ -110,7 +113,9 @@ Wird bei jedem Aufruf frisch gelesen, ein Neustart des Servers ist nicht nötig.
 | `defaultFilter` | Vorausgewählter Look | `"original"` |
 | `mirrorPreview` | Vorschau spiegeln (das Foto selbst nie) | `true` |
 | `showQrCode` | QR-Code nach dem Shooting anzeigen | `true` |
-| `strip.background` / `strip.foreground` / `strip.accent` | Farben des Streifens | Weiß / Schwarz / Gold |
+| `strip.style` | Vorlage des Streifens: `classic`, `elegant` oder `midnight` | `"classic"` |
+| `strip.accent` | Akzentfarbe für Streifen **und** Bedienoberfläche | `"#c8a25a"` |
+| `strip.background` / `strip.foreground` | Papier- und Schriftfarbe; ohne Angabe aus der Vorlage | — |
 
 ### `.env` — wie der Server läuft
 
@@ -181,3 +186,8 @@ Schrift im Hintergrund falsch herum. Wer beides gespiegelt will, setzt
 
 **Der Streifen ist zu lang/zu kurz.** `shots` in `config.json` anpassen; das
 Seitenverhältnis der Einzelbilder kommt von der Kamera und wird übernommen.
+
+**Die Vorschau sieht anders aus als das fertige Foto.** Die Live-Vorschau nutzt
+CSS-Filter, das fertige Bild wird Pixel für Pixel gerechnet. Farbstimmung und
+Kontrast stimmen überein, aber Korn und Randabfall von „Vintage“ erscheinen erst
+im Ergebnis – in der Vorschau wären sie bei 60 Bildern pro Sekunde zu teuer.

@@ -14,7 +14,7 @@ const DEFAULTS = {
   defaultFilter: 'original',
   mirrorPreview: true,
   showQrCode: true,
-  strip: { background: '#ffffff', foreground: '#14110f', accent: '#c8a25a' },
+  strip: { style: 'classic', accent: '#c8a25a' },
 };
 
 function readJson(file) {

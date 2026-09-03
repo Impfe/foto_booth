@@ -120,7 +120,7 @@ async function flash() {
 }
 
 function canvasToJpeg(canvas) {
-  return canvas.toDataURL('image/jpeg', 0.92);
+  return canvas.toDataURL('image/jpeg', 0.88);
 }
 
 async function upload(dataUrl, shots) {

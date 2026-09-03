@@ -58,6 +58,53 @@ function vignette(data, width, height, strength = 0.45) {
   }
 }
 
+/** Hebt die Tiefen an und nimmt den Lichtern die Spitze - der ausgewaschene
+ *  Look von Film, der jahrelang in der Schublade lag. */
+function fade(data, lift = 26, compress = 0.84) {
+  for (let i = 0; i < data.length; i += 4) {
+    data[i] = clamp(data[i] * compress + lift);
+    data[i + 1] = clamp(data[i + 1] * compress + lift);
+    data[i + 2] = clamp(data[i + 2] * compress + lift);
+  }
+}
+
+/**
+ * Faerbt Tiefen und Lichter unterschiedlich ein. Alte Kameras und alternde
+ * Filme kippen die Schatten ins Kuehle und die Lichter ins Warme - genau das
+ * macht den Look aus, nicht der Sepiaschleier ueber allem.
+ */
+function splitTone(data, shadows, highlights, amount = 1) {
+  for (let i = 0; i < data.length; i += 4) {
+    const t = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114) / 255;
+    for (let c = 0; c < 3; c++) {
+      data[i + c] = clamp(data[i + c] + (shadows[c] * (1 - t) + highlights[c] * t) * amount);
+    }
+  }
+}
+
+/**
+ * Gleichmaessiges Korn ueber alle Kanaele - farbiges Rauschen wirkt digital.
+ * Das Korn sitzt in kleinen Bloecken statt auf einzelnen Pixeln: so sieht es
+ * bei 1200 Pixeln Streifenbreite nach Film aus statt nach Sensorrauschen, und
+ * die JPEG-Datei bleibt ein Bruchteil so gross.
+ */
+function grain(data, width, height, strength = 16, size = 3) {
+  for (let y = 0; y < height; y += size) {
+    for (let x = 0; x < width; x += size) {
+      const noise = (Math.random() - 0.5) * strength;
+      for (let dy = 0; dy < size && y + dy < height; dy++) {
+        const row = (y + dy) * width;
+        for (let dx = 0; dx < size && x + dx < width; dx++) {
+          const i = (row + x + dx) * 4;
+          data[i] = clamp(data[i] + noise);
+          data[i + 1] = clamp(data[i + 1] + noise);
+          data[i + 2] = clamp(data[i + 2] + noise);
+        }
+      }
+    }
+  }
+}
+
 export const FILTERS = [
   {
     id: 'original',
@@ -85,13 +132,19 @@ export const FILTERS = [
     },
   },
   {
+    // Alte Kleinbildkamera: verblasste Tiefen, kuehle Schatten, warme Lichter,
+    // sichtbares Korn und ein kraeftiger Randabfall.
     id: 'vintage',
     name: 'Vintage',
-    css: 'sepia(0.4) contrast(1.15) saturate(0.85) brightness(1.05)',
+    css: 'sepia(0.3) saturate(0.72) contrast(0.9) brightness(1.1)',
     px: (data, w, h) => {
-      sepia(data, 0.4);
-      tone(data, { contrastAmount: 1.15, brightness: 1.05, bGain: 0.94 });
-      vignette(data, w, h, 0.5);
+      grayscale(data, 0.28);
+      sepia(data, 0.22);
+      fade(data, 26, 0.84);
+      splitTone(data, [-10, -2, 14], [18, 8, -10]);
+      tone(data, { contrastAmount: 1.06 });
+      grain(data, w, h, 16, 3);
+      vignette(data, w, h, 0.62);
     },
   },
   {
