@@ -13,11 +13,13 @@
     "dev": "node --watch --env-file-if-exists=.env server/index.js",
     "cert": "bash scripts/gen-cert.sh",
     "icons": "node scripts/gen-icons.mjs",
+    "mails": "node --env-file-if-exists=.env scripts/send-mails.mjs",
     "test": "node --test tests/*.test.js"
   },
   "dependencies": {
     "archiver": "^7.0.1",
     "express": "^4.21.2",
+    "nodemailer": "^9.1.1",
     "qrcode": "^1.5.4"
   },
   "overrides": {

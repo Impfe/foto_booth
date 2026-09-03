@@ -23,6 +23,11 @@ const els = {
   qrHint: document.getElementById('qrHint'),
   status: document.getElementById('status'),
   again: document.getElementById('again'),
+  mailOpen: document.getElementById('mailOpen'),
+  mailForm: document.getElementById('mailForm'),
+  mailInput: document.getElementById('mailInput'),
+  mailCancel: document.getElementById('mailCancel'),
+  mailStatus: document.getElementById('mailStatus'),
   download: document.getElementById('download'),
   flip: document.getElementById('flip'),
   soundToggle: document.getElementById('soundToggle'),
@@ -39,6 +44,7 @@ const state = {
   relockTimer: null,
   filterId: 'original',
   busy: false,
+  photoId: null,
   reviewTimer: null,
   wakeLock: null,
 };
@@ -147,6 +153,48 @@ async function upload(dataUrl, shots) {
   return response.json();
 }
 
+/**
+ * Adresse eintragen statt QR-Code scannen - fuer alle, deren Handy gerade
+ * leer ist. Das Foto geht nicht sofort raus; die Adresse landet neben der
+ * Aufnahme und wird spaeter gesammelt verschickt.
+ */
+function showMailForm(open) {
+  els.mailForm.hidden = !open;
+  els.mailOpen.hidden = open;
+  // Zwei goldene Knoepfe untereinander streiten sich um den Blick - solange
+  // das Feld offen ist, ist "Eintragen" die Hauptsache.
+  els.again.classList.toggle('button--primary', !open);
+  if (open) {
+    // Solange jemand tippt, darf die Booth nicht zurueckspringen.
+    clearTimeout(state.reviewTimer);
+    els.mailInput.focus();
+  } else {
+    scheduleReturnToIdle();
+  }
+}
+
+async function submitMail(event) {
+  event.preventDefault();
+  const email = els.mailInput.value.trim();
+  if (!email || !state.photoId) return;
+  els.mailStatus.textContent = 'Wird eingetragen …';
+  try {
+    const response = await fetch(`/api/photos/${state.photoId}/email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    const detail = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(detail.error || 'Eintragen fehlgeschlagen.');
+    els.mailInput.value = '';
+    showMailForm(false);
+    els.mailOpen.hidden = true;
+    els.mailStatus.textContent = `Notiert – das Foto geht an ${detail.email}.`;
+  } catch (err) {
+    els.mailStatus.textContent = err.message;
+  }
+}
+
 function scheduleReturnToIdle() {
   clearTimeout(state.reviewTimer);
   const seconds = state.config?.reviewSeconds ?? 60;
@@ -156,6 +204,11 @@ function scheduleReturnToIdle() {
 function backToIdle() {
   clearTimeout(state.reviewTimer);
   state.busy = false;
+  state.photoId = null;
+  els.mailForm.hidden = true;
+  els.mailInput.value = '';
+  els.mailStatus.textContent = '';
+  els.mailOpen.hidden = true;
   els.result.removeAttribute('src');
   els.qr.removeAttribute('src');
   els.qr.hidden = true;
@@ -196,11 +249,15 @@ async function runSession() {
     els.download.download = `fotobox-${Date.now()}.jpg`;
     els.status.textContent = 'Wird gespeichert …';
     els.qr.hidden = true;
+    els.mailOpen.hidden = true;
     setState('result');
     sound.done();
     scheduleReturnToIdle();
 
     const saved = await upload(dataUrl, shots);
+    state.photoId = saved.id;
+    // Erst jetzt anbieten - vorher gibt es kein Foto, dem die Adresse gehoert.
+    els.mailOpen.hidden = false;
     if (saved.qr) {
       els.qr.src = saved.qr;
       els.qr.hidden = false;
@@ -304,6 +361,9 @@ async function init() {
     runSession();
   });
   els.download.addEventListener('click', () => scheduleReturnToIdle());
+  els.mailOpen.addEventListener('click', () => showMailForm(true));
+  els.mailCancel.addEventListener('click', () => showMailForm(false));
+  els.mailForm.addEventListener('submit', submitMail);
   els.flip.addEventListener('click', async () => {
     try {
       await camera.flip();

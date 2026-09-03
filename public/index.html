@@ -72,6 +72,17 @@
     <img id="qr" class="result__qr" alt="QR-Code zum Herunterladen des Fotos" hidden>
     <p id="qrHint" class="result__qrhint" hidden>Mit dem Handy scannen</p>
     <p id="status" class="result__status" role="status"></p>
+    <div class="mailbox">
+      <button id="mailOpen" type="button" class="button button--slim">Lieber per E-Mail</button>
+      <form id="mailForm" class="mailbox__form" hidden>
+        <input id="mailInput" class="mailbox__input" type="email" inputmode="email"
+               autocomplete="email" autocapitalize="off" autocorrect="off" spellcheck="false"
+               placeholder="deine@mail.de" maxlength="254" required>
+        <button type="submit" class="button button--primary">Eintragen</button>
+        <button type="button" id="mailCancel" class="button button--slim">Abbrechen</button>
+      </form>
+      <p id="mailStatus" class="mailbox__status" role="status"></p>
+    </div>
     <button id="again" type="button" class="button button--primary">Nochmal</button>
     <a id="download" class="button" download>Auf dem iPad speichern</a>
   </aside>

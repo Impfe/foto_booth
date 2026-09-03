@@ -21,6 +21,8 @@ sie wie eine native App im Vollbild.
   Abendveranstaltungen), umschaltbar über `strip.style`
 - **QR-Code zum Mitnehmen** – nach jedem Shooting erscheint ein QR-Code; wer ihn
   scannt, landet auf einer Downloadseite für genau dieses Foto
+- **E-Mail als Alternative** – wer gerade kein Handy zur Hand hat, trägt seine
+  Adresse ein; nach dem Fest gehen die Bilder gesammelt raus (`npm run mails`)
 - **Galerie & Export** – alle Aufnahmen des Abends unter `/gallery`, einzeln
   löschbar, gesammelt als ZIP herunterladbar
 - **Kiosk-Betrieb** – Gäste sehen nur den Auslöser; Galerie, Kameraseite und Ton
@@ -160,6 +162,37 @@ jemanden, der es ernsthaft darauf anlegt. Eine vierstellige PIN im eigenen WLAN
 ist genau so viel Sicherheit, wie eine Fotobox braucht. Wer die Booth öffentlich
 erreichbar macht, sollte zusätzlich `GALLERY_PASSWORD` setzen.
 
+## Fotos an die Gäste
+
+Zwei Wege, beide gleichzeitig nutzbar:
+
+**QR-Code.** Er zeigt auf die Adresse *genau eines* Streifens (`/p/<id>`). Wer
+scannt, sieht sein eigenes Foto und sonst nichts. Die ID besteht aus Zeitstempel
+und sechs Zufallszeichen – nicht zu erraten, aber auch kein Geheimnis: Wer den
+Link weitergibt, gibt das Foto weiter.
+
+**E-Mail.** Auf dem Ergebnisbildschirm führt „Lieber per E-Mail“ zu einem
+Eingabefeld. Die Adresse landet zusammen mit der Foto-ID in
+`data/recipients.jsonl` – angehängt, Zeile für Zeile, damit ein Stromausfall
+nicht die Liste des ganzen Abends mitnimmt. Verschickt wird zu diesem Zeitpunkt
+nichts.
+
+Nach dem Fest:
+
+```bash
+npm run mails            # zeigt nur an, was rausgehen würde
+npm run mails -- --send  # verschickt tatsächlich
+```
+
+Ohne `--send` passiert nichts. Verschickte Mails werden in `data/sent.json`
+vermerkt, ein zweiter Lauf überspringt sie – niemand bekommt sein Foto doppelt.
+Die Zugangsdaten für den Mailversand stehen in der `.env` (bei Gmail ein
+App-Passwort, nicht das Kontopasswort).
+
+Die gesammelten Adressen gibt es in der Galerie auch als CSV, falls du lieber
+selbst schreibst. Und: Es sind personenbezogene Daten – nach dem Versand gehört
+`data/recipients.jsonl` gelöscht.
+
 ## Betrieb
 
 Die Fotos liegen als gewöhnliche Dateien in `DATA_DIR` — pro Aufnahme ein JPEG
@@ -178,6 +211,7 @@ erratbare) ID abrufbar, die Übersicht bleibt damit privat.
 npm run dev      # Server mit Auto-Reload
 npm test         # Tests für Speicher, HTTP-Schnittstelle und Admin-Zugang
 npm run icons    # App-Icons neu erzeugen
+npm run mails    # Probelauf des Mailversands
 ```
 
 ```
@@ -191,7 +225,7 @@ public/          Alles, was im Browser läuft (kein Build-Schritt)
   js/filters.js  Bildlooks für Vorschau und fertiges Foto
   js/strip.js    Montage des Fotostreifens auf dem Canvas
   js/admin.js    PIN-Feld für den Admin-Zugang
-scripts/         Start, Zertifikat und Icons
+scripts/         Start, Zertifikat, Icons und Mailversand
 tests/           Tests (node --test, ohne weitere Abhängigkeiten)
 ```
 

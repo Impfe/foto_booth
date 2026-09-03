@@ -190,3 +190,57 @@ test('ohne PIN und Passwort bleibt alles offen', async () => {
   assert.equal(status.unlocked, true);
   assert.equal((await fetch(`${base}/api/photos`)).status, 200);
 });
+
+test('E-Mail-Adressen werden zum Foto gesammelt und als CSV ausgegeben', async () => {
+  const { base } = await startServer(8397);
+
+  const photo = await (
+    await fetch(`${base}/api/photos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: PIXEL_JPEG }),
+    })
+  ).json();
+
+  const addMail = (id, email) =>
+    fetch(`${base}/api/photos/${id}/email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+
+  const created = await addMail(photo.id, '  Anna@Example.COM ');
+  assert.equal(created.status, 201);
+  assert.equal((await created.json()).email, 'anna@example.com', 'wird normalisiert');
+
+  for (const invalid of ['', 'kein-mail', 'a@b', 'a b@c.de']) {
+    assert.equal((await addMail(photo.id, invalid)).status, 400, `abgewiesen: ${invalid}`);
+  }
+  assert.equal((await addMail('20200101-000000-aaaaaa', 'a@b.de')).status, 404);
+
+  // Dieselbe Adresse zweimal ergibt keinen zweiten Eintrag.
+  await addMail(photo.id, 'anna@example.com');
+  await addMail(photo.id, 'ben@example.com');
+
+  const recipients = await (await fetch(`${base}/api/recipients`)).json();
+  assert.deepEqual(
+    recipients.map((entry) => entry.email),
+    ['anna@example.com', 'ben@example.com'],
+  );
+  assert.equal(recipients[0].photoId, photo.id);
+  assert.equal(recipients[0].file, photo.file);
+
+  // Bytes lesen, nicht text(): Das BOM, das Excel fuer die Umlaute braucht,
+  // wird von Response.text() laut Spezifikation stillschweigend entfernt.
+  const raw = Buffer.from(await (await fetch(`${base}/api/recipients.csv`)).arrayBuffer());
+  assert.deepEqual([...raw.subarray(0, 3)], [0xef, 0xbb, 0xbf], 'BOM fuer Excel');
+  const csv = raw.toString('utf8').slice(1);
+  assert.match(csv, /^email,photoId,datei,eingetragen\n/);
+  assert.match(csv, new RegExp(`"anna@example.com","${photo.id}"`));
+});
+
+test('die Empfaengerliste haengt am Admin-Zugang', async () => {
+  const { base } = await startServer(8398, { ADMIN_PIN: '4711' });
+  assert.equal((await fetch(`${base}/api/recipients`)).status, 401);
+  assert.equal((await fetch(`${base}/api/recipients.csv`)).status, 401);
+});

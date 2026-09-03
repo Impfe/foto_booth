@@ -113,6 +113,42 @@ app.delete('/api/photos/:id', requireAdmin, async (req, res, next) => {
   }
 });
 
+app.post('/api/photos/:id/email', async (req, res, next) => {
+  try {
+    const entry = await store.addRecipient(req.params.id, String(req.body?.email ?? ''));
+    res.status(201).json({ email: entry.email });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get('/api/recipients', requireAdmin, async (_req, res, next) => {
+  try {
+    res.json(await store.recipients());
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get('/api/recipients.csv', requireAdmin, async (_req, res, next) => {
+  try {
+    const entries = await store.recipients();
+    const escape = (value) => `"${String(value).replace(/"/g, '""')}"`;
+    const rows = [
+      ['email', 'photoId', 'datei', 'eingetragen'].join(','),
+      ...entries.map((entry) =>
+        [entry.email, entry.photoId, entry.file, entry.createdAt].map(escape).join(','),
+      ),
+    ];
+    res.attachment(`fotobox-mails-${new Date().toISOString().slice(0, 10)}.csv`);
+    res.type('text/csv; charset=utf-8');
+    // BOM, damit Excel die Umlaute richtig liest.
+    res.send(`\uFEFF${rows.join('\n')}\n`);
+  } catch (err) {
+    next(err);
+  }
+});
+
 app.get('/media/:id', async (req, res, next) => {
   try {
     const meta = await store.get(req.params.id);

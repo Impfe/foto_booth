@@ -3,6 +3,10 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 
 const ID_PATTERN = /^[0-9]{8}-[0-9]{6}-[a-z0-9]{6}$/;
+// Absichtlich grosszuegig: hier soll niemand aussperrt werden, der eine
+// ungewoehnliche, aber gueltige Adresse hat.
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@.]+\.[^\s@]+$/;
+const RECIPIENTS_FILE = 'recipients.jsonl';
 const DATA_URL_PATTERN = /^data:image\/(jpeg|png);base64,([A-Za-z0-9+/=]+)$/;
 const MAX_BYTES = 20 * 1024 * 1024;
 
@@ -80,6 +84,62 @@ export class PhotoStore {
 
   filePath(meta) {
     return path.join(this.dir, meta.file);
+  }
+
+  static isValidEmail(value) {
+    return typeof value === 'string' && value.length <= 254 && EMAIL_PATTERN.test(value);
+  }
+
+  /**
+   * Merkt sich, an wen ein Foto spaeter gehen soll.
+   *
+   * Anhaengende Zeilen statt einer Datei, die neu geschrieben wird: Faellt
+   * mitten im Abend der Strom aus, sind die bisherigen Adressen trotzdem da.
+   */
+  async addRecipient(id, email) {
+    const meta = await this.get(id);
+    if (!meta) throw Object.assign(new Error('Unbekanntes Foto'), { status: 404 });
+    // Erst aufraeumen, dann pruefen - iOS haengt beim Tippen gern ein
+    // Leerzeichen an, und daran soll niemand scheitern.
+    const address = String(email ?? '').trim().toLowerCase();
+    if (!PhotoStore.isValidEmail(address)) {
+      throw Object.assign(new Error('Das sieht nicht nach einer E-Mail-Adresse aus.'), {
+        status: 400,
+      });
+    }
+    const entry = {
+      photoId: meta.id,
+      file: meta.file,
+      email: address,
+      createdAt: new Date().toISOString(),
+    };
+    await fs.appendFile(path.join(this.dir, RECIPIENTS_FILE), `${JSON.stringify(entry)}\n`);
+    return entry;
+  }
+
+  /** Alle Empfaenger, Doppelnennungen derselben Adresse zum selben Foto entfernt. */
+  async recipients() {
+    let raw = '';
+    try {
+      raw = await fs.readFile(path.join(this.dir, RECIPIENTS_FILE), 'utf8');
+    } catch {
+      return [];
+    }
+    const seen = new Set();
+    const entries = [];
+    for (const line of raw.split('\n')) {
+      if (!line.trim()) continue;
+      try {
+        const entry = JSON.parse(line);
+        const key = `${entry.photoId}|${entry.email}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        entries.push(entry);
+      } catch {
+        // Eine kaputte Zeile darf nicht die ganze Liste unbrauchbar machen.
+      }
+    }
+    return entries;
   }
 
   async remove(id) {
