@@ -65,14 +65,17 @@ test('kompletter Weg: Foto hochladen, abrufen, teilen, exportieren, loeschen', a
   });
   assert.equal(created.status, 201);
   const photo = await created.json();
-  assert.equal(photo.shareUrl, `${base}/p/${photo.id}`);
+  // Der Link landet auf fremden Handys - er darf niemals auf deren eigenes
+  // Geraet zeigen, auch wenn die Booth ueber localhost bedient wird.
+  assert.match(photo.shareUrl, new RegExp(`^http://[^/]+/p/${photo.id}$`));
+  assert.doesNotMatch(photo.shareUrl, /localhost|127\.0\.0\.1|\[::1\]/);
   assert.match(photo.qr, /^data:image\/png;base64,/);
 
   const media = await fetch(`${base}${photo.url}`);
   assert.equal(media.status, 200);
   assert.equal(media.headers.get('content-type'), 'image/jpeg');
 
-  const sharePage = await (await fetch(photo.shareUrl)).text();
+  const sharePage = await (await fetch(`${base}/p/${photo.id}`)).text();
   assert.match(sharePage, new RegExp(`/media/${photo.id}`));
   assert.match(sharePage, /Foto speichern/);
 
@@ -84,7 +87,7 @@ test('kompletter Weg: Foto hochladen, abrufen, teilen, exportieren, loeschen', a
 
   assert.equal((await fetch(`${base}/api/photos/${photo.id}`, { method: 'DELETE' })).status, 204);
   assert.equal((await fetch(`${base}/api/photos/${photo.id}`, { method: 'DELETE' })).status, 404);
-  assert.equal((await fetch(photo.shareUrl)).status, 404);
+  assert.equal((await fetch(`${base}/p/${photo.id}`)).status, 404);
 });
 
 test('ungueltige Uploads werden abgewiesen', async () => {

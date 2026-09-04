@@ -34,10 +34,26 @@ app.use(express.json({ limit: '25mb' }));
  * braucht aber gar kein HTTPS - Kamera gibt es dort keine. Also zeigen die
  * Links auf den Klartext-Port, und die Gaeste sehen einfach ihr Foto.
  */
+const LOOPBACK = new Set(['localhost', '127.0.0.1', '::1']);
+
+/**
+ * Hostname fuer Links, die auf fremden Geraeten geoeffnet werden.
+ *
+ * Wer die Booth ueber localhost bedient, wuerde QR-Codes erzeugen, die auf das
+ * Handy des Gastes selbst zeigen - dort laeuft natuerlich kein Server. In dem
+ * Fall nehmen wir die Netzwerkadresse dieses Rechners.
+ */
+function shareHost(req) {
+  if (!LOOPBACK.has(req.hostname)) return req.hostname;
+  return localAddresses()[0] || req.hostname;
+}
+
 function publicBaseUrl(req) {
   if (server.publicUrl) return server.publicUrl;
-  if (server.httpPort) return `http://${req.hostname}:${server.httpPort}`;
-  return `${req.protocol}://${req.get('host')}`;
+  if (server.httpPort) return `http://${shareHost(req)}:${server.httpPort}`;
+  const port = (req.get('host') || '').split(':')[1];
+  const host = shareHost(req);
+  return `${req.protocol}://${port ? `${host}:${port}` : host}`;
 }
 
 function escapeHtml(value) {

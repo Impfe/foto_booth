@@ -332,6 +332,10 @@ Safari links in der Adresszeile auf „aA“ → **Website-Einstellungen** → K
 WLAN trennt die Clients voneinander. Zum Test die angezeigte Adresse am Handy
 von Hand eintippen.
 
+Die Links zeigen immer auf die Netzwerkadresse des Rechners – auch wenn die
+Booth selbst über `localhost` bedient wird. Sonst landete das Handy des Gastes
+bei sich selbst.
+
 **Das Bild ist spiegelverkehrt.** Die Vorschau ist absichtlich gespiegelt (das
 fühlt sich an wie ein Spiegel), das gespeicherte Foto nicht — sonst stünde jede
 Schrift im Hintergrund falsch herum. Wer beides gespiegelt will, setzt
