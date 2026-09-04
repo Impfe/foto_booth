@@ -1,0 +1,24 @@
+# Betrieb ohne eigenen Rechner: Diese Datei beschreibt Render den kompletten
+# Dienst. Im Render-Dashboard "New > Blueprint" waehlen, dieses Repository
+# angeben - der Rest passiert von selbst.
+#
+# Wichtig ist die Platte weiter unten. Ohne sie waeren alle Fotos beim naechsten
+# Neustart weg, denn das Dateisystem eines Dienstes ist sonst fluechtig.
+services:
+  - type: web
+    name: fotobox
+    runtime: node
+    region: frankfurt
+    plan: starter # Der Gratis-Tarif kann keine Platte und schlaeft ein.
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATA_DIR
+        value: /var/data
+      - key: ADMIN_PIN
+        sync: false # wird im Dashboard gesetzt, steht nicht im Repository
+    disk:
+      name: fotos
+      mountPath: /var/data
+      sizeGB: 1

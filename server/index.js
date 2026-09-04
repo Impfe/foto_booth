@@ -48,6 +48,46 @@ function publicBoothConfig() {
 
 const requireAdmin = admin.middleware();
 
+/**
+ * Einfache Obergrenze je Absenderadresse.
+ *
+ * Im heimischen WLAN braucht das niemand. Sobald die Booth aber oeffentlich
+ * erreichbar ist, ist /api/photos ein offener Bilder-Upload - und eine volle
+ * Festplatte mitten in der Feier waere ein bloedes Ende. Die Grenzen sind so
+ * gesetzt, dass ein Abend am iPad (alles von derselben Adresse) bequem
+ * darunter bleibt.
+ */
+function rateLimit({ windowMs, max, message }) {
+  const hits = new Map();
+  return (req, res, next) => {
+    const now = Date.now();
+    if (hits.size > 5000) {
+      for (const [key, entry] of hits) if (now - entry.first > windowMs) hits.delete(key);
+    }
+    const key = req.ip || 'unbekannt';
+    const entry = hits.get(key);
+    if (!entry || now - entry.first > windowMs) {
+      hits.set(key, { count: 1, first: now });
+      return next();
+    }
+    entry.count += 1;
+    if (entry.count > max) return res.status(429).json({ error: message });
+    return next();
+  };
+}
+
+const limitUploads = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 60,
+  message: 'Gerade zu viele Aufnahmen hintereinander. Bitte kurz warten.',
+});
+
+const limitMails = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 30,
+  message: 'Gerade zu viele Eintraege hintereinander. Bitte kurz warten.',
+});
+
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
 app.get('/api/config', (_req, res) => {
@@ -80,7 +120,7 @@ app.post('/api/admin/lock', (_req, res) => {
   res.json({ unlocked: false });
 });
 
-app.post('/api/photos', async (req, res, next) => {
+app.post('/api/photos', limitUploads, async (req, res, next) => {
   try {
     const { image, kind, filter, shots } = req.body || {};
     const meta = await store.save({ dataUrl: image, kind, filter, shots });
@@ -113,7 +153,7 @@ app.delete('/api/photos/:id', requireAdmin, async (req, res, next) => {
   }
 });
 
-app.post('/api/photos/:id/email', async (req, res, next) => {
+app.post('/api/photos/:id/email', limitMails, async (req, res, next) => {
   try {
     const entry = await store.addRecipient(req.params.id, String(req.body?.email ?? ''));
     res.status(201).json({ email: entry.email });

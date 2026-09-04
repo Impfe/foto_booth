@@ -193,6 +193,46 @@ Die gesammelten Adressen gibt es in der Galerie auch als CSV, falls du lieber
 selbst schreibst. Und: Es sind personenbezogene Daten – nach dem Versand gehört
 `data/recipients.jsonl` gelöscht.
 
+## Ohne eigenen Rechner betreiben
+
+Solange der Server auf dem Laptop läuft, muss der Laptop laufen: im selben WLAN,
+wach, Terminal offen. Für einen ganzen Abend ist das unpraktisch. Die Alternative
+ist, die Fotobox bei einem Anbieter laufen zu lassen.
+
+Das löst nebenbei das Zertifikatsproblem: Du bekommst echtes HTTPS unter einer
+richtigen Adresse, Safari gibt die Kamera sofort frei, nichts muss aufs iPad
+installiert werden.
+
+Im Repository liegt dafür eine fertige `render.yaml`. Bei
+[Render](https://render.com) genügt **New → Blueprint**, dieses Repository
+auswählen, `ADMIN_PIN` setzen, fertig. Nach ein paar Minuten läuft die Booth
+unter einer Adresse wie `https://fotobox.onrender.com`.
+
+Zwei Dinge, an denen so ein Aufbau sonst scheitert:
+
+- **Der Gratis-Tarif reicht nicht.** Er schläft nach Inaktivität ein und hat kein
+  dauerhaftes Dateisystem – die Fotos wären nach dem ersten Neustart weg. Die
+  `render.yaml` fordert deshalb den `starter`-Tarif mit einer 1-GB-Platte, auf
+  die `DATA_DIR` zeigt (rund 7 $ im Monat, monatlich kündbar).
+- **Die Location braucht Internet.** Fällt es aus, steht die Booth. Wer das nicht
+  riskieren will, betreibt den Server lokal auf einem Raspberry Pi – dann bleibt
+  allerdings das Zertifikat-Prozedere.
+
+Wenn du die Fotos danach behalten willst: vor dem Kündigen in der Galerie
+**Alle als ZIP** herunterladen.
+
+### Wer im Netz die Booth benutzen kann
+
+Unter einer öffentlichen Adresse kann jeder, der sie kennt, die Booth aufrufen
+und Fotos hochladen. Für einen Abend ist die unbekannte Adresse Schutz genug,
+aber sie *ist* nur das. Zwei Grenzen sind deshalb eingebaut: 60 Aufnahmen und
+30 Adress-Einträge je zehn Minuten und Absender. Ein Abend am iPad – alles von
+derselben Adresse – bleibt bequem darunter; ein Skript, das die Platte vollmüllen
+will, läuft dagegen.
+
+Die Galerie hängt ohnehin an der Admin-PIN. Wer mehr will, setzt zusätzlich
+`GALLERY_PASSWORD`.
+
 ## Betrieb
 
 Die Fotos liegen als gewöhnliche Dateien in `DATA_DIR` — pro Aufnahme ein JPEG
@@ -226,6 +266,7 @@ public/          Alles, was im Browser läuft (kein Build-Schritt)
   js/strip.js    Montage des Fotostreifens auf dem Canvas
   js/admin.js    PIN-Feld für den Admin-Zugang
 scripts/         Start, Zertifikat, Icons und Mailversand
+render.yaml      Fertiger Bauplan fuer den Betrieb ohne eigenen Rechner
 tests/           Tests (node --test, ohne weitere Abhängigkeiten)
 ```
 
