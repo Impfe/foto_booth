@@ -416,6 +416,39 @@ body[data-state="processing"] .frame {
   to   { transform: scale(0.98); opacity: 0.92; }
 }
 
+/* Die eben gemachte Aufnahme, kurz gross gezeigt - liegt da wie ein Abzug. */
+.shot-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: shot-pop 260ms var(--ease);
+}
+
+.shot-preview canvas {
+  display: block;
+  max-width: min(72vw, 660px);
+  max-height: 54vh;
+  padding: 9px;
+  border-radius: 6px;
+  background: linear-gradient(160deg, #ffffff, #efe9df);
+  box-shadow: var(--shadow-deep);
+}
+
+@keyframes shot-pop {
+  from { transform: scale(0.94); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+/* Raus aus der Serie - liegt bewusst unten, weg von den Blicken. */
+.stage__cancel {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--safe-bottom) + 30px);
+  transform: translateX(-50%);
+  width: auto;
+  min-width: 190px;
+}
+
 .shot-label {
   margin: 0;
   font-size: 13px;

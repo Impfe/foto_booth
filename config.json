@@ -3,7 +3,8 @@
   "eventSubtitle": "60. Geburtstag",
   "shots": 3,
   "countdownSeconds": 5,
-  "pauseBetweenShotsMs": 800,
+  "frameReviewMs": 1000,
+  "countdownSecondsNext": 4,
   "reviewSeconds": 60,
   "defaultFilter": "original",
   "mirrorPreview": true,
@@ -12,6 +13,7 @@
   "adminPin": "1608",
   "strip": {
     "style": "classic",
-    "accent": "#c8a25a"
+    "accent": "#c8a25a",
+    "ornament": "60"
   }
 }

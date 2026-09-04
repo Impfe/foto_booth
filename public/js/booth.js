@@ -1,7 +1,7 @@
 // Ablaufsteuerung der Fotobox: Vorschau -> Countdown -> Serie -> Streifen -> QR-Code.
 import { fetchAdminState, lockAdmin, openPinPad } from './admin.js';
 import { Camera } from './camera.js';
-import { FILTERS, getFilter } from './filters.js';
+import { FILTERS, applyFilter, getFilter } from './filters.js';
 import { composeStrip } from './strip.js';
 import { sound } from './sound.js';
 
@@ -17,6 +17,8 @@ const els = {
   countdown: document.getElementById('countdown'),
   countdownRing: document.getElementById('countdownRing'),
   shotLabel: document.getElementById('shotLabel'),
+  shotPreview: document.getElementById('shotPreview'),
+  cancel: document.getElementById('cancel'),
   progress: document.getElementById('progress'),
   result: document.getElementById('resultImage'),
   qr: document.getElementById('qr'),
@@ -43,12 +45,25 @@ const state = {
   relockTimer: null,
   filterId: 'original',
   busy: false,
+  cancelRequested: false,
   photoId: null,
   reviewTimer: null,
   wakeLock: null,
 };
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Signalisiert den Abbruch durch die Gaeste - kein Fehler, sondern ein Wunsch. */
+class Cancelled extends Error {
+  constructor() {
+    super('Abgebrochen');
+    this.name = 'Cancelled';
+  }
+}
+
+function stopIfCancelled() {
+  if (state.cancelRequested) throw new Cancelled();
+}
 
 function setState(name) {
   els.body.dataset.state = name;
@@ -118,9 +133,35 @@ async function runCountdown(seconds) {
     els.countdownRing.classList.add('is-running');
     sound.tick();
     await wait(1000);
+    stopIfCancelled();
   }
   els.countdownRing.classList.remove('is-running');
   els.countdown.textContent = '';
+}
+
+/**
+ * Zeigt die eben gemachte Aufnahme kurz gross an. Ohne das weiss niemand, ob
+ * das Foto geklappt hat - und es ist der Moment, in dem gelacht wird.
+ *
+ * Verkleinert und mit dem gewaehlten Look, damit das Bild dem entspricht, was
+ * spaeter auf dem Streifen steht, ohne dass die Vollaufloesung gerechnet wird.
+ */
+function reviewFrame(frame) {
+  const preview = document.createElement('canvas');
+  preview.width = 720;
+  preview.height = Math.round((frame.height / frame.width) * preview.width);
+  const ctx = preview.getContext('2d');
+  ctx.drawImage(frame, 0, 0, preview.width, preview.height);
+  applyFilter(ctx, state.filterId, 0, 0, preview.width, preview.height);
+  els.shotPreview.replaceChildren(preview);
+  els.shotPreview.hidden = false;
+  els.countdownRing.hidden = true;
+}
+
+function hideShotPreview() {
+  els.shotPreview.hidden = true;
+  els.shotPreview.replaceChildren();
+  els.countdownRing.hidden = false;
 }
 
 async function flash() {
@@ -134,7 +175,7 @@ function canvasToJpeg(canvas) {
   return canvas.toDataURL('image/jpeg', 0.88);
 }
 
-async function upload(dataUrl, shots) {
+async function sendPhoto(dataUrl, shots) {
   const response = await fetch('/api/photos', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -145,11 +186,28 @@ async function upload(dataUrl, shots) {
       shots,
     }),
   });
-  if (!response.ok) {
-    const detail = await response.json().catch(() => ({}));
-    throw new Error(detail.error || `Speichern fehlgeschlagen (${response.status}).`);
+  if (response.ok) return response.json();
+  const detail = await response.json().catch(() => ({}));
+  throw Object.assign(new Error(detail.error || `Speichern fehlgeschlagen (${response.status}).`), {
+    status: response.status,
+  });
+}
+
+/**
+ * Ein Aussetzer im WLAN darf den Streifen nicht kosten: Schlaegt der erste
+ * Versuch am Netz oder am Server fehl, geht zwei Sekunden spaeter einer
+ * hinterher. Bei einer Ablehnung (4xx) waere das sinnlos - das Bild wuerde
+ * genauso wieder abgelehnt.
+ */
+async function upload(dataUrl, shots) {
+  try {
+    return await sendPhoto(dataUrl, shots);
+  } catch (err) {
+    if (err.status && err.status < 500) throw err;
+    els.status.textContent = 'Verbindung wackelt – zweiter Versuch …';
+    await wait(2000);
+    return sendPhoto(dataUrl, shots);
   }
-  return response.json();
 }
 
 /**
@@ -202,7 +260,9 @@ function scheduleReturnToIdle() {
 
 function backToIdle() {
   clearTimeout(state.reviewTimer);
+  hideShotPreview();
   state.busy = false;
+  state.cancelRequested = false;
   state.photoId = null;
   els.mailForm.hidden = true;
   els.mailInput.value = '';
@@ -222,6 +282,7 @@ async function runSession() {
     return;
   }
   state.busy = true;
+  state.cancelRequested = false;
   sound.unlock();
   showNotice('');
 
@@ -232,12 +293,25 @@ async function runSession() {
     for (let index = 0; index < shots; index++) {
       renderProgress(index, shots);
       setShotLabel(index, shots);
-      await runCountdown(Math.max(1, Number(state.config.countdownSeconds) || 3));
+      // Vor dem ersten Foto laenger, danach kuerzer - zusammen mit der einen
+      // Sekunde Bildkontrolle liegen so rund fuenf Sekunden zwischen zwei
+      // Aufnahmen.
+      const seconds =
+        index === 0
+          ? Math.max(1, Number(state.config.countdownSeconds) || 5)
+          : Math.max(1, Number(state.config.countdownSecondsNext) || 4);
+      await runCountdown(seconds);
       await flash();
-      frames.push(camera.captureFrame());
-      if (index < shots - 1) await wait(Number(state.config.pauseBetweenShotsMs) || 1200);
+
+      const frame = camera.captureFrame();
+      frames.push(frame);
+      renderProgress(index + 1, shots);
+
+      reviewFrame(frame);
+      await wait(Number(state.config.frameReviewMs) || 1000);
+      hideShotPreview();
+      stopIfCancelled();
     }
-    renderProgress(shots, shots);
 
     setState('processing');
     const strip = composeStrip({ frames, filterId: state.filterId, config: state.config });
@@ -265,6 +339,11 @@ async function runSession() {
       els.status.textContent = 'Gespeichert.';
     }
   } catch (err) {
+    if (err instanceof Cancelled) {
+      hideShotPreview();
+      backToIdle();
+      return;
+    }
     console.error(err);
     els.status.textContent = err.message;
     els.qrHint.hidden = true;
@@ -353,6 +432,9 @@ async function init() {
   els.soundToggle.setAttribute('aria-pressed', String(sound.enabled));
 
   els.shutter.addEventListener('click', runSession);
+  els.cancel.addEventListener('click', () => {
+    state.cancelRequested = true;
+  });
   els.again.addEventListener('click', () => {
     backToIdle();
     runSession();

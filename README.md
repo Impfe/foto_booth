@@ -13,6 +13,8 @@ sie wie eine native App im Vollbild.
 - **Countdown & Fotostreifen** – konfigurierbare Anzahl Aufnahmen, Countdown mit
   Ton und Blitz-Effekt, automatisch montiert zum klassischen Streifen mit
   Event-Titel und Datum
+- **Kontrolle für die Gäste** – jede Aufnahme wird kurz groß gezeigt, und eine
+  laufende Serie lässt sich jederzeit abbrechen
 - **Filter & Branding** – Original, S/W, Sepia, Vintage, Kühl, Warm; live in der
   Vorschau, identisch im fertigen Bild. Titel, Untertitel und Farben kommen aus
   `config.json`
@@ -137,8 +139,9 @@ Wird bei jedem Aufruf frisch gelesen, ein Neustart des Servers ist nicht nötig.
 | `eventTitle` | Überschrift im Bild und auf dem Streifen | `"Unsere Fotobox"` |
 | `eventSubtitle` | Zweite Zeile auf dem Streifen, z. B. der Ort | `""` |
 | `shots` | Aufnahmen pro Durchgang (1 = Einzelfoto) | `4` |
-| `countdownSeconds` | Countdown vor jeder Aufnahme | `3` |
-| `pauseBetweenShotsMs` | Pause zwischen zwei Aufnahmen | `1200` |
+| `countdownSeconds` | Countdown vor der **ersten** Aufnahme | `5` |
+| `countdownSecondsNext` | Countdown vor jeder weiteren Aufnahme | `4` |
+| `frameReviewMs` | Wie lange die eben gemachte Aufnahme gezeigt wird | `1000` |
 | `reviewSeconds` | Wie lange das Ergebnis stehen bleibt (0 = bis „Nochmal“) | `60` |
 | `defaultFilter` | Vorausgewählter Look | `"original"` |
 | `mirrorPreview` | Vorschau spiegeln (das Foto selbst nie) | `true` |
@@ -146,6 +149,7 @@ Wird bei jedem Aufruf frisch gelesen, ein Neustart des Servers ist nicht nötig.
 | `kioskMode` | Bedienelemente vor Gästen verbergen (siehe unten) | `true` |
 | `adminPin` | PIN für den Admin-Zugang; leer = kein Schutz | `"1608"` |
 | `strip.style` | Vorlage des Streifens: `classic`, `elegant` oder `midnight` | `"classic"` |
+| `strip.ornament` | Medaillon im Fuß, z. B. `"60"` oder ein Monogramm; leer = schlichte Raute | `""` |
 | `strip.accent` | Akzentfarbe für Streifen **und** Bedienoberfläche | `"#c8a25a"` |
 | `strip.background` / `strip.foreground` | Papier- und Schriftfarbe; ohne Angabe aus der Vorlage | — |
 
@@ -184,6 +188,24 @@ Zur Einordnung: Das ist ein Riegel gegen neugierige Gäste, kein Schutz gegen
 jemanden, der es ernsthaft darauf anlegt. Eine vierstellige PIN im eigenen WLAN
 ist genau so viel Sicherheit, wie eine Fotobox braucht. Wer die Booth öffentlich
 erreichbar macht, sollte zusätzlich `GALLERY_PASSWORD` setzen.
+
+### Der Ablauf einer Serie
+
+```
+  Tippen  →  5s Countdown  →  Blitz  →  1s das Foto ansehen
+                                    ↘   4s Countdown  →  Blitz  →  1s ansehen  →  …
+```
+
+Zwischen zwei Aufnahmen liegen so rund fünf Sekunden: eine Sekunde Bildkontrolle
+und vier Sekunden sichtbarer Countdown. Das reicht zum Umstellen, ohne dass
+Langeweile aufkommt. Alle drei Werte sind in der `config.json` einstellbar.
+
+Unten hängt während der ganzen Serie ein **Abbrechen** – für den Fehlklick, die
+Gruppe, die noch nicht steht, oder das umgekippte Glas. Abgebrochene Serien
+werden nicht gespeichert.
+
+Schlägt das Speichern am Ende fehl, versucht die Booth es nach zwei Sekunden
+ein zweites Mal. Ein kurzer Aussetzer im WLAN kostet den Streifen also nicht.
 
 ## Fotos an die Gäste
 

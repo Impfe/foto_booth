@@ -68,6 +68,7 @@ function resolveStyle(config) {
     backgroundTo: strip.background || base.backgroundTo,
     foreground: strip.foreground || base.foreground,
     accent: strip.accent || '#c8a25a',
+    ornament: strip.ornament ? String(strip.ornament) : '',
   };
 }
 
@@ -100,12 +101,16 @@ function drawTracked(ctx, text, centerX, y, spacing) {
   ctx.textAlign = previousAlign;
 }
 
-/** Trennlinie im Fuss - mit Raute als Blickfang oder als ruhige Linie. */
-function drawDivider(ctx, kind, centerX, y, width, color) {
+/**
+ * Trennlinie im Fuss. In der Mitte sitzt entweder eine Raute, eine ruhige
+ * durchgehende Linie - oder, wenn `ornament` gesetzt ist, ein Medaillon mit
+ * dem Anlass darin ("60", ein Monogramm, ein Jahr).
+ */
+function drawDivider(ctx, { kind, centerX, y, width, color, ornament }) {
   ctx.strokeStyle = color;
   ctx.lineWidth = 1.5;
 
-  if (kind === 'rule') {
+  if (kind === 'rule' && !ornament) {
     ctx.beginPath();
     ctx.moveTo(centerX - width / 2, y);
     ctx.lineTo(centerX + width / 2, y);
@@ -113,19 +118,36 @@ function drawDivider(ctx, kind, centerX, y, width, color) {
     return;
   }
 
+  // Die Linie laesst in der Mitte Platz fuer das, was dort steht.
+  const gap = ornament ? 46 : 15;
   const arm = width / 2 - 22;
   ctx.beginPath();
   ctx.moveTo(centerX - arm, y);
-  ctx.lineTo(centerX - 15, y);
-  ctx.moveTo(centerX + 15, y);
+  ctx.lineTo(centerX - gap, y);
+  ctx.moveTo(centerX + gap, y);
   ctx.lineTo(centerX + arm, y);
   ctx.stroke();
 
-  ctx.fillStyle = color;
+  if (!ornament) {
+    ctx.fillStyle = color;
+    ctx.save();
+    ctx.translate(centerX, y);
+    ctx.rotate(Math.PI / 4);
+    ctx.fillRect(-5, -5, 10, 10);
+    ctx.restore();
+    return;
+  }
+
   ctx.save();
-  ctx.translate(centerX, y);
-  ctx.rotate(Math.PI / 4);
-  ctx.fillRect(-5, -5, 10, 10);
+  ctx.beginPath();
+  ctx.arc(centerX, y, 32, 0, Math.PI * 2);
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.font = `500 ${ornament.length > 2 ? 24 : 32}px ${SERIF}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(ornament, centerX, y + 1, 52);
   ctx.restore();
 }
 
@@ -161,7 +183,7 @@ export function composeStrip({ frames, filterId = 'original', config, date = new
   const aspect = frames[0].height / frames[0].width;
   const frameHeight = Math.round(frameWidth * aspect);
   const subtitle = config?.eventSubtitle || '';
-  const footerHeight = subtitle ? 248 : 196;
+  const footerHeight = (subtitle ? 248 : 196) + (config?.strip?.ornament ? 34 : 0);
   const height =
     padding * 2 + frames.length * frameHeight + (frames.length - 1) * gap + footerHeight;
 
@@ -191,22 +213,31 @@ export function composeStrip({ frames, filterId = 'original', config, date = new
 
   const footerTop = height - footerHeight;
   const dividerWidth = style.divider === 'rule' ? frameWidth * 0.3 : frameWidth * 0.42;
-  drawDivider(ctx, style.divider, canvas.width / 2, footerTop + 36, dividerWidth, accent);
+  drawDivider(ctx, {
+    kind: style.divider,
+    centerX: canvas.width / 2,
+    y: footerTop + 44,
+    width: style.ornament ? Math.max(dividerWidth, 300) : dividerWidth,
+    color: accent,
+    ornament: style.ornament,
+  });
+  ctx.textBaseline = 'alphabetic';
 
   ctx.textAlign = 'center';
   ctx.fillStyle = foreground;
   ctx.font = `500 ${style.titleSize}px ${SERIF}`;
-  ctx.fillText(config?.eventTitle || 'Fotobox', canvas.width / 2, footerTop + 118, frameWidth);
+  const titleY = footerTop + 118 + (style.ornament ? 34 : 0);
+  ctx.fillText(config?.eventTitle || 'Fotobox', canvas.width / 2, titleY, frameWidth);
 
   ctx.fillStyle = withAlpha(foreground, 0.58);
   if (subtitle) {
     ctx.font = `500 26px ${SANS}`;
-    drawTracked(ctx, subtitle.toUpperCase(), canvas.width / 2, footerTop + 166, 5);
+    drawTracked(ctx, subtitle.toUpperCase(), canvas.width / 2, titleY + 48, 5);
     ctx.font = `400 28px ${SERIF}`;
-    ctx.fillText(formatDate(date), canvas.width / 2, footerTop + 214, frameWidth);
+    ctx.fillText(formatDate(date), canvas.width / 2, titleY + 96, frameWidth);
   } else {
     ctx.font = `400 28px ${SERIF}`;
-    ctx.fillText(formatDate(date), canvas.width / 2, footerTop + 166, frameWidth);
+    ctx.fillText(formatDate(date), canvas.width / 2, titleY + 48, frameWidth);
   }
 
   return canvas;

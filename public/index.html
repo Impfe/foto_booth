@@ -48,6 +48,7 @@
 </main>
 
 <div class="stage stage--shooting">
+  <div id="shotPreview" class="shot-preview" hidden></div>
   <div id="countdownRing" class="countdown">
     <svg class="countdown__ring" viewBox="0 0 320 320" aria-hidden="true">
       <circle class="countdown__track" cx="160" cy="160" r="150"></circle>
@@ -57,6 +58,7 @@
   </div>
   <p id="shotLabel" class="shot-label"></p>
   <div id="progress" class="progress" aria-hidden="true"></div>
+  <button id="cancel" type="button" class="button button--slim stage__cancel">Abbrechen</button>
 </div>
 
 <div class="stage stage--processing">

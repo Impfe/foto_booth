@@ -9,14 +9,15 @@ const DEFAULTS = {
   eventSubtitle: '',
   shots: 4,
   countdownSeconds: 3,
-  pauseBetweenShotsMs: 1200,
+  frameReviewMs: 1000,
+  countdownSecondsNext: 4,
   reviewSeconds: 60,
   defaultFilter: 'original',
   mirrorPreview: true,
   showQrCode: true,
   kioskMode: false,
   adminPin: '',
-  strip: { style: 'classic', accent: '#c8a25a' },
+  strip: { style: 'classic', accent: '#c8a25a', ornament: '' },
 };
 
 function readJson(file) {
