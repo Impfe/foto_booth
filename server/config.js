@@ -52,8 +52,14 @@ export function loadServerConfig() {
   const tlsCert = path.resolve(ROOT, process.env.TLS_CERT || './certs/cert.pem');
   const tlsKey = path.resolve(ROOT, process.env.TLS_KEY || './certs/key.pem');
   const tlsAvailable = fs.existsSync(tlsCert) && fs.existsSync(tlsKey);
+  const port = Number(process.env.PORT) || (tlsAvailable ? 8443 : 8080);
+  // Zweiter Listener ohne TLS. Er existiert nur, wenn HTTPS laeuft, und traegt
+  // die Links fuer die Gaeste - deren Handys kennen unser Zertifikat nicht.
+  let httpPort = Number(process.env.HTTP_PORT) || 8080;
+  if (tlsAvailable && httpPort === port) httpPort = port + 1;
   return {
-    port: Number(process.env.PORT) || (tlsAvailable ? 8443 : 8080),
+    port,
+    httpPort: tlsAvailable ? httpPort : null,
     dataDir: path.resolve(ROOT, process.env.DATA_DIR || './data'),
     publicUrl: (process.env.PUBLIC_URL || '').replace(/\/+$/, ''),
     galleryPassword: process.env.GALLERY_PASSWORD || '',

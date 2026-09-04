@@ -25,9 +25,18 @@ app.disable('x-powered-by');
 app.set('trust proxy', true);
 app.use(express.json({ limit: '25mb' }));
 
-/** Basis-URL fuer QR-Codes: feste PUBLIC_URL, sonst die Adresse dieser Anfrage. */
+/**
+ * Basis-URL fuer QR-Codes und Downloadlinks.
+ *
+ * Der wichtige Fall ist der mittlere: Laeuft die Booth lokal mit einem
+ * selbstsignierten Zertifikat, kennt dieses Zertifikat nur das iPad. Jedes
+ * Gaestehandy bekaeme beim Scannen eine Sicherheitswarnung. Die Downloadseite
+ * braucht aber gar kein HTTPS - Kamera gibt es dort keine. Also zeigen die
+ * Links auf den Klartext-Port, und die Gaeste sehen einfach ihr Foto.
+ */
 function publicBaseUrl(req) {
   if (server.publicUrl) return server.publicUrl;
+  if (server.httpPort) return `http://${req.hostname}:${server.httpPort}`;
   return `${req.protocol}://${req.get('host')}`;
 }
 
@@ -278,26 +287,37 @@ function localAddresses() {
     .map((nic) => nic.address);
 }
 
-const instance = server.tls
-  ? https.createServer(server.tls, app)
-  : http.createServer(app);
+function describe(scheme, port) {
+  const addresses = ['localhost', ...localAddresses()];
+  return addresses.map((address) => `${scheme}://${address}:${port}`);
+}
 
-instance.listen(server.port, () => {
+const primary = server.tls ? https.createServer(server.tls, app) : http.createServer(app);
+
+primary.listen(server.port, () => {
   const scheme = server.tls ? 'https' : 'http';
-  console.log(`\n  Fotobox laeuft auf Port ${server.port}\n`);
-  for (const address of ['localhost', ...localAddresses()]) {
-    console.log(`    Booth    ${scheme}://${address}:${server.port}/`);
-  }
-  console.log(`    Galerie  ${scheme}://${localAddresses()[0] || 'localhost'}:${server.port}/gallery`);
-  console.log(`    Fotos    ${server.dataDir}`);
+  console.log(`\n  Fotobox laeuft.\n`);
+  console.log(server.tls ? '  Fuers iPad (Kamera braucht HTTPS):' : '  Adresse:');
+  for (const url of describe(scheme, server.port)) console.log(`    ${url}/`);
+
   if (!server.tls) {
+    console.log(`\n  Galerie  ${describe(scheme, server.port).pop()}/gallery`);
     console.log(
       `\n  Hinweis: ohne HTTPS gibt Safari die Kamera nur auf localhost frei.` +
-        `\n  Zertifikat erzeugen mit: npm run cert (erwartet ${path.relative(ROOT, server.tlsPaths.cert)})\n`,
+        `\n  Zertifikat erzeugen mit: npm run cert\n`,
     );
-  } else {
-    console.log('');
   }
+  console.log(`\n  Fotos    ${server.dataDir}\n`);
 });
+
+// Klartext-Listener fuer die Gaeste. Ihre Handys sollen kein Zertifikat
+// installieren muessen, nur um ein Foto herunterzuladen.
+if (server.httpPort) {
+  http.createServer(app).listen(server.httpPort, () => {
+    console.log('  Fuer die Gaeste (Ziel der QR-Codes, ohne Zertifikat):');
+    for (const url of describe('http', server.httpPort)) console.log(`    ${url}/`);
+    console.log(`\n  Galerie  ${describe('http', server.httpPort).pop()}/gallery\n`);
+  });
+}
 
 export { app };

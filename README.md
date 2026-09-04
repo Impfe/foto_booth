@@ -58,7 +58,7 @@ die Vorschau schwarz und die App meldet, dass sie keinen Kamerazugriff bekommt.
 
 `npm run cert` erzeugt ein Zertifikat, das auf alle lokalen IP-Adressen des
 Rechners ausgestellt ist. Damit Safari es akzeptiert, muss es einmalig auf dem
-iPad hinterlegt werden:
+**iPad** hinterlegt werden – und nur dort, siehe den übernächsten Abschnitt:
 
 1. `certs/cert.pem` aufs iPad schicken (AirDrop oder Mail)
 2. Datei öffnen → **Einstellungen → Allgemein → VPN & Geräteverwaltung →
@@ -71,6 +71,28 @@ Ohne Schritt 3 zeigt Safari zwar die Seite, verweigert aber die Kamera.
 *Alternative:* Wer die Fotobox ohnehin auf einem Server mit echter Domain und
 Let's-Encrypt-Zertifikat betreibt, kann `npm run cert` überspringen und
 stattdessen hinter einen Reverse Proxy stellen (siehe „Betrieb“).
+
+### Warum die Gäste trotzdem kein Zertifikat brauchen
+
+Das selbstsignierte Zertifikat kennt nur das iPad. Würden die QR-Codes auf die
+`https`-Adresse zeigen, bekäme jedes Gästehandy beim Scannen eine
+Sicherheitswarnung – und niemand installiert 40 Gästen ein Zertifikatsprofil.
+
+Die Downloadseite braucht aber gar kein HTTPS: Dort gibt es keine Kamera, also
+auch keinen Grund für einen sicheren Kontext. Sobald ein Zertifikat vorliegt,
+lauscht der Server deshalb auf **zwei** Ports:
+
+| Port | Wofür |
+| --- | --- |
+| `8443` (HTTPS) | Die Booth auf dem iPad – hier ist HTTPS Pflicht wegen der Kamera |
+| `8080` (HTTP) | Alles für die Gäste: QR-Ziele, Downloadseiten, Bilder |
+
+Die QR-Codes zeigen automatisch auf den zweiten. Gäste öffnen also eine ganz
+normale `http`-Adresse, sehen ihr Foto und werden nichts gefragt. Der Port lässt
+sich über `HTTP_PORT` ändern.
+
+Beim Betrieb in der Cloud (echtes Zertifikat) entfällt das: Dort läuft alles
+über eine Adresse, und die QR-Codes zeigen dorthin.
 
 ## Aufbau am Event-Abend
 
@@ -136,6 +158,7 @@ Wird bei jedem Aufruf frisch gelesen, ein Neustart des Servers ist nicht nötig.
 | `PORT` | Port des Servers (Standard 8443 mit TLS, sonst 8080) |
 | `DATA_DIR` | Wohin die Fotos geschrieben werden (Standard `./data`) |
 | `TLS_CERT` / `TLS_KEY` | Zertifikat und Key; fehlen sie, startet der Server ohne HTTPS |
+| `HTTP_PORT` | Klartext-Port für die Gäste-Links, nur wenn HTTPS läuft (Standard 8080) |
 | `PUBLIC_URL` | Feste Adresse für die QR-Codes; leer = aus der Anfrage abgeleitet |
 | `ADMIN_PIN` | Überschreibt `adminPin` aus der `config.json`; leer gesetzt hebt sie auf |
 | `GALLERY_PASSWORD` | Zusätzlicher Passwortschutz (Basic Auth) für Galerie und Export |
