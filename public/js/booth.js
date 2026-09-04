@@ -28,7 +28,6 @@ const els = {
   mailInput: document.getElementById('mailInput'),
   mailCancel: document.getElementById('mailCancel'),
   mailStatus: document.getElementById('mailStatus'),
-  download: document.getElementById('download'),
   flip: document.getElementById('flip'),
   soundToggle: document.getElementById('soundToggle'),
   galleryLink: document.getElementById('galleryLink'),
@@ -245,8 +244,6 @@ async function runSession() {
     const dataUrl = canvasToJpeg(strip);
 
     els.result.src = dataUrl;
-    els.download.href = dataUrl;
-    els.download.download = `fotobox-${Date.now()}.jpg`;
     els.status.textContent = 'Wird gespeichert …';
     els.qr.hidden = true;
     els.mailOpen.hidden = true;
@@ -360,7 +357,6 @@ async function init() {
     backToIdle();
     runSession();
   });
-  els.download.addEventListener('click', () => scheduleReturnToIdle());
   els.mailOpen.addEventListener('click', () => showMailForm(true));
   els.mailCancel.addEventListener('click', () => showMailForm(false));
   els.mailForm.addEventListener('submit', submitMail);
