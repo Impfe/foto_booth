@@ -344,6 +344,12 @@ Seitenverhältnis der Einzelbilder kommt von der Kamera und wird übernommen.
 `config.json` unter `adminPin`. Nach zehn Fehlversuchen sperrt der Server für
 15 Minuten – ein Neustart des Servers hebt die Sperre sofort auf.
 
+**Die Booth zeigt alte Einstellungen oder „Keine Verbindung zum Server".** Dann
+erreicht die Seite den Server nicht: Er läuft nicht, oder in der Adresszeile
+steht eine alte IP. Der Router vergibt Adressen neu – die aktuelle steht beim
+Start im Terminal. Ändert sie sich, muss auch das Zertifikat neu erzeugt werden
+(`npm run cert`).
+
 **Die Vorschau sieht anders aus als das fertige Foto.** Die Live-Vorschau nutzt
 CSS-Filter, das fertige Bild wird Pixel für Pixel gerechnet. Farbstimmung und
 Kontrast stimmen überein, aber Korn und Randabfall von „Vintage“ erscheinen erst

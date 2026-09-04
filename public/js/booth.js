@@ -422,11 +422,19 @@ async function openAdmin() {
 }
 
 async function init() {
+  // Ohne Server ist die Booth nutzlos: keine Einstellungen, kein Speichern,
+  // kein QR-Code. Frueher lief sie hier mit Standardwerten weiter und sah
+  // funktionsfaehig aus - das hat mehr verwirrt als geholfen.
   try {
-    state.config = await fetch('/api/config').then((response) => response.json());
+    const response = await fetch('/api/config', { cache: 'no-store' });
+    if (!response.ok) throw new Error(String(response.status));
+    state.config = await response.json();
   } catch {
-    state.config = { shots: 4, countdownSeconds: 3, reviewSeconds: 60, eventTitle: 'Fotobox' };
-    showNotice('Einstellungen konnten nicht geladen werden – es gelten Standardwerte.');
+    showNotice(
+      'Keine Verbindung zum Fotobox-Server. Läuft er noch, und stimmt die Adresse in der Adresszeile?',
+    );
+    setState('error');
+    return;
   }
 
   state.filterId = state.config.defaultFilter || 'original';
@@ -509,6 +517,17 @@ init().catch((err) => {
   setState('error');
 });
 
+// Alte Registrierungen entfernen. Siehe public/sw.js - der Cache liess eine
+// nicht erreichbare Booth wie eine laufende aussehen.
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch(() => {});
+  navigator.serviceWorker
+    .getRegistrations()
+    .then((registrations) => registrations.forEach((registration) => registration.unregister()))
+    .catch(() => {});
+}
+if (window.caches?.keys) {
+  caches
+    .keys()
+    .then((keys) => keys.forEach((key) => caches.delete(key)))
+    .catch(() => {});
 }
