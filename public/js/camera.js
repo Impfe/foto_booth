@@ -8,6 +8,33 @@ const ERROR_MESSAGES = {
   OverconstrainedError: 'Die gewünschte Kamera ist auf diesem Gerät nicht verfügbar.',
 };
 
+/** Laesst eine Zusage hoechstens `ms` lang laufen - danach geht es weiter. */
+function settled(promise, ms) {
+  return Promise.race([
+    Promise.resolve(promise).catch(() => {}),
+    new Promise((resolve) => setTimeout(resolve, ms)),
+  ]);
+}
+
+/**
+ * Wartet, bis das Videobild seine Masse kennt.
+ *
+ * Bewusst durch Nachfragen statt ueber `loadedmetadata`: Feuert das Ereignis
+ * einen Wimpernschlag zu frueh, wartet ein Zuhoerer, der erst danach angemeldet
+ * wird, fuer immer - und die Booth haengt ohne Fehlermeldung im Ladekreis.
+ */
+async function waitForDimensions(video, timeoutMs = 8000) {
+  const deadline = Date.now() + timeoutMs;
+  while (!video.videoWidth) {
+    if (Date.now() > deadline) {
+      throw new Error(
+        'Die Kamera liefert kein Bild. Seite neu laden – und prüfen, ob eine andere App sie gerade benutzt.',
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+}
+
 export class Camera {
   constructor(videoElement) {
     this.video = videoElement;
@@ -45,11 +72,11 @@ export class Camera {
     this.video.srcObject = this.stream;
     this.video.setAttribute('playsinline', '');
     this.video.muted = true;
-    await this.video.play();
-    // Auf dem iPad meldet play() manchmal Erfolg, bevor die Masse feststehen.
-    if (!this.video.videoWidth) {
-      await new Promise((resolve) => this.video.addEventListener('loadedmetadata', resolve, { once: true }));
-    }
+    // Safari lehnt play() gelegentlich ab oder antwortet gar nicht, obwohl der
+    // Stream laeuft. Beides darf den Start nicht aufhalten - ob wirklich ein
+    // Bild ankommt, pruefen wir gleich selbst.
+    await settled(this.video.play(), 3000);
+    await waitForDimensions(this.video);
     return this.stream;
   }
 
