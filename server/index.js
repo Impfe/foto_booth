@@ -50,9 +50,15 @@ function escapeHtml(value) {
  * Die Booth-Konfiguration, wie sie der Browser sehen darf: ohne die PIN,
  * dafuer mit der Information, ob ueberhaupt eine gesetzt ist.
  */
-function publicBoothConfig() {
+function publicBoothConfig(req) {
   const { adminPin, ...rest } = loadBoothConfig();
-  return { ...rest, adminRequired: admin.isEnabled };
+  return {
+    ...rest,
+    adminRequired: admin.isEnabled,
+    // Nur im lokalen Betrieb gesetzt: die Adresse, unter der die Kamera geht.
+    // Wer versehentlich den Klartext-Port erwischt, soll das erfahren.
+    boothUrl: server.httpPort ? `https://${req.hostname}:${server.port}/` : null,
+  };
 }
 
 const requireAdmin = admin.middleware();
@@ -99,8 +105,8 @@ const limitMails = rateLimit({
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
-app.get('/api/config', (_req, res) => {
-  res.json(publicBoothConfig());
+app.get('/api/config', (req, res) => {
+  res.json(publicBoothConfig(req));
 });
 
 app.get('/api/admin/status', (req, res) => {

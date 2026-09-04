@@ -1,6 +1,6 @@
 // Cacht nur die Programmoberflaeche, damit die Booth auch bei kurzem
 // WLAN-Aussetzer startet. Fotos und API-Antworten werden nie gecacht.
-const CACHE = 'fotobox-v2';
+const CACHE = 'fotobox-v3';
 const SHELL = [
   '/',
   '/css/booth.css',

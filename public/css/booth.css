@@ -220,6 +220,14 @@ body {
 
 /* ---------- Buehnen ---------- */
 
+.notice__link {
+  display: inline-block;
+  margin-top: 6px;
+  color: #fff;
+  font-weight: 600;
+  word-break: break-all;
+}
+
 .stage {
   position: fixed;
   inset: 0;

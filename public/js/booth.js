@@ -5,37 +5,52 @@ import { FILTERS, applyFilter, getFilter } from './filters.js';
 import { composeStrip } from './strip.js';
 import { sound } from './sound.js';
 
+/**
+ * Holt ein Element - und liefert einen stillen Platzhalter, falls es fehlt.
+ *
+ * Das passiert, wenn Browser oder Service Worker eine aeltere Seite ausliefern
+ * als das Skript erwartet. Vorher riss ein einziges fehlendes Element den
+ * ganzen Start mit: Die Booth blieb ohne Erklaerung bei "Kamera wird
+ * gestartet". Lieber fehlt ein Knopf, als dass die Kamera nie anspringt.
+ */
+function pick(id) {
+  const element = document.getElementById(id);
+  if (element) return element;
+  console.warn(`Bedienelement #${id} fehlt - vermutlich eine veraltete Seite im Cache.`);
+  return document.createElement('span');
+}
+
 const els = {
   body: document.body,
-  video: document.getElementById('preview'),
-  flash: document.getElementById('flash'),
-  title: document.getElementById('title'),
-  subtitle: document.getElementById('subtitle'),
-  filters: document.getElementById('filters'),
-  shutter: document.getElementById('shutter'),
-  hint: document.getElementById('hint'),
-  countdown: document.getElementById('countdown'),
-  countdownRing: document.getElementById('countdownRing'),
-  shotLabel: document.getElementById('shotLabel'),
-  shotPreview: document.getElementById('shotPreview'),
-  cancel: document.getElementById('cancel'),
-  progress: document.getElementById('progress'),
-  result: document.getElementById('resultImage'),
-  qr: document.getElementById('qr'),
-  qrHint: document.getElementById('qrHint'),
-  status: document.getElementById('status'),
-  again: document.getElementById('again'),
-  mailOpen: document.getElementById('mailOpen'),
-  mailForm: document.getElementById('mailForm'),
-  mailInput: document.getElementById('mailInput'),
-  mailCancel: document.getElementById('mailCancel'),
-  mailStatus: document.getElementById('mailStatus'),
-  flip: document.getElementById('flip'),
-  soundToggle: document.getElementById('soundToggle'),
-  galleryLink: document.getElementById('galleryLink'),
-  admin: document.getElementById('admin'),
-  lock: document.getElementById('lock'),
-  notice: document.getElementById('notice'),
+  video: pick('preview'),
+  flash: pick('flash'),
+  title: pick('title'),
+  subtitle: pick('subtitle'),
+  filters: pick('filters'),
+  shutter: pick('shutter'),
+  hint: pick('hint'),
+  countdown: pick('countdown'),
+  countdownRing: pick('countdownRing'),
+  shotLabel: pick('shotLabel'),
+  shotPreview: pick('shotPreview'),
+  cancel: pick('cancel'),
+  progress: pick('progress'),
+  result: pick('resultImage'),
+  qr: pick('qr'),
+  qrHint: pick('qrHint'),
+  status: pick('status'),
+  again: pick('again'),
+  mailOpen: pick('mailOpen'),
+  mailForm: pick('mailForm'),
+  mailInput: pick('mailInput'),
+  mailCancel: pick('mailCancel'),
+  mailStatus: pick('mailStatus'),
+  flip: pick('flip'),
+  soundToggle: pick('soundToggle'),
+  galleryLink: pick('galleryLink'),
+  admin: pick('admin'),
+  lock: pick('lock'),
+  notice: pick('notice'),
 };
 
 const camera = new Camera(els.video);
@@ -65,12 +80,20 @@ function stopIfCancelled() {
   if (state.cancelRequested) throw new Cancelled();
 }
 
+
 function setState(name) {
   els.body.dataset.state = name;
 }
 
-function showNotice(message) {
-  els.notice.textContent = message;
+function showNotice(message, url) {
+  els.notice.replaceChildren(document.createTextNode(message));
+  if (url) {
+    const link = document.createElement('a');
+    link.className = 'notice__link';
+    link.href = url;
+    link.textContent = url;
+    els.notice.append(document.createElement('br'), link);
+  }
   els.notice.hidden = !message;
 }
 
@@ -459,6 +482,15 @@ async function init() {
     if (document.visibilityState === 'visible' && !camera.isRunning) camera.start().catch(() => {});
   });
 
+  // Der Klartext-Port ist fuer die Gaeste gedacht; dort gibt Safari die
+  // Kamera nicht frei. Statt einer allgemeinen Fehlermeldung die richtige
+  // Adresse nennen.
+  if (state.config.boothUrl && window.location.protocol !== 'https:') {
+    showNotice('Diese Adresse ist für die Gäste. Die Booth läuft hier:', state.config.boothUrl);
+    setState('error');
+    return;
+  }
+
   try {
     await camera.start();
     setState('idle');
@@ -469,7 +501,13 @@ async function init() {
   keepAwake();
 }
 
-init();
+// Ein Fehler beim Aufbau darf nicht stumm bleiben - sonst haengt die Booth
+// ohne Erklaerung in "Kamera wird gestartet".
+init().catch((err) => {
+  console.error(err);
+  showNotice(`Start fehlgeschlagen: ${err.message}. Seite neu laden.`);
+  setState('error');
+});
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
