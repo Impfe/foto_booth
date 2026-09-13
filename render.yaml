@@ -11,13 +11,16 @@ services:
     region: frankfurt
     plan: starter # Der Gratis-Tarif kann keine Platte und schlaeft ein.
     buildCommand: npm ci --omit=dev
-    startCommand: npm start
+    # Bewusst nicht "npm start": Das npm-Skript laedt zusaetzlich eine .env und
+    # braucht dafuer eine Node-Option, die aeltere Fassungen nicht kennen. Hier
+    # gibt es keine .env - die Einstellungen kommen aus dem Dashboard.
+    startCommand: node server/index.js
     healthCheckPath: /api/health
     envVars:
+      # Muss auf die Platte unten zeigen, sonst sind die Fotos nach jedem
+      # Neustart weg.
       - key: DATA_DIR
         value: /var/data
-      - key: ADMIN_PIN
-        sync: false # wird im Dashboard gesetzt, steht nicht im Repository
     disk:
       name: fotos
       mountPath: /var/data

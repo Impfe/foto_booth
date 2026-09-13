@@ -249,9 +249,14 @@ richtigen Adresse, Safari gibt die Kamera sofort frei, nichts muss aufs iPad
 installiert werden.
 
 Im Repository liegt dafür eine fertige `render.yaml`. Bei
-[Render](https://render.com) genügt **New → Blueprint**, dieses Repository
-auswählen, `ADMIN_PIN` setzen, fertig. Nach ein paar Minuten läuft die Booth
-unter einer Adresse wie `https://fotobox.onrender.com`.
+[Render](https://render.com) genügt **New → Blueprint** und dieses Repository
+auszuwählen. Nach ein paar Minuten läuft die Booth unter einer Adresse wie
+`https://fotobox.onrender.com`.
+
+Die Admin-PIN kommt wie lokal aus der `config.json`. Sie lässt sich über die
+Umgebungsvariable `ADMIN_PIN` überschreiben – aber Vorsicht: Eine *leer*
+gesetzte Variable hebt die PIN auf und gibt die Galerie frei. Wer sie nicht
+braucht, setzt sie gar nicht erst.
 
 Zwei Dinge, an denen so ein Aufbau sonst scheitert:
 
