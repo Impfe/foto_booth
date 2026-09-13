@@ -247,3 +247,86 @@ test('die Empfaengerliste haengt am Admin-Zugang', async () => {
   assert.equal((await fetch(`${base}/api/recipients`)).status, 401);
   assert.equal((await fetch(`${base}/api/recipients.csv`)).status, 401);
 });
+
+test('Zugangscode sperrt das Fotografieren, nicht aber die Gaesteseiten', async () => {
+  const { base } = await startServer(8399, {}, { boothPin: '2468' });
+
+  const config = await (await fetch(`${base}/api/config`)).json();
+  assert.equal(config.boothLocked, true);
+  assert.equal('boothPin' in config, false, 'Der Code darf den Browser nie erreichen');
+
+  const status = await (await fetch(`${base}/api/booth/status`)).json();
+  assert.deepEqual(status, { enabled: true, open: false, pinLength: 4 });
+
+  const shoot = (headers = {}) =>
+    fetch(`${base}/api/photos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: JSON.stringify({ image: PIXEL_JPEG }),
+    });
+
+  assert.equal((await shoot()).status, 401, 'ohne Code kein Foto');
+
+  const unlock = (pin) =>
+    fetch(`${base}/api/booth/unlock`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin }),
+    });
+
+  assert.equal((await unlock('1111')).status, 401);
+  const opened = await unlock('2468');
+  assert.equal(opened.status, 200);
+
+  const cookie = opened.headers.get('set-cookie').split(';')[0];
+  assert.match(cookie, /^booth_pass=[a-f0-9]{64}$/);
+  const created = await shoot({ cookie });
+  assert.equal(created.status, 201);
+
+  const photo = await created.json();
+  // Gaeste scannen den QR-Code ohne jeden Code - das muss offen bleiben.
+  assert.equal((await fetch(`${base}/p/${photo.id}`)).status, 200);
+  assert.equal((await fetch(`${base}/media/${photo.id}`)).status, 200);
+  assert.equal((await fetch(`${base}/api/health`)).status, 200);
+
+  // Adressen eintragen gehoert zur Booth und haengt am selben Code.
+  const mail = (headers = {}) =>
+    fetch(`${base}/api/photos/${photo.id}/email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: JSON.stringify({ email: 'a@b.de' }),
+    });
+  assert.equal((await mail()).status, 401);
+  assert.equal((await mail({ cookie })).status, 201);
+});
+
+test('das Booth-Token ueberlebt einen Neustart', async () => {
+  const first = await startServer(8400, {}, { boothPin: '2468' });
+  const opened = await fetch(`${first.base}/api/booth/unlock`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pin: '2468' }),
+  });
+  const cookie = opened.headers.get('set-cookie').split(';')[0];
+
+  // Zweiter Server, frischer Prozess - das iPad soll nach einem Deploy nicht
+  // ausgesperrt sein.
+  const second = await startServer(8401, {}, { boothPin: '2468' });
+  const status = await (
+    await fetch(`${second.base}/api/booth/status`, { headers: { cookie } })
+  ).json();
+  assert.equal(status.open, true);
+});
+
+test('ohne Zugangscode bleibt die Booth offen', async () => {
+  const { base } = await startServer(8402);
+  const status = await (await fetch(`${base}/api/booth/status`)).json();
+  assert.equal(status.enabled, false);
+  assert.equal(status.open, true);
+  const created = await fetch(`${base}/api/photos`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image: PIXEL_JPEG }),
+  });
+  assert.equal(created.status, 201);
+});

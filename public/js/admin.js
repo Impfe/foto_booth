@@ -3,6 +3,14 @@
 // Die PIN selbst kennt nur der Server. Hier wird sie eingesammelt, hingeschickt
 // und das Ergebnis gemeldet - im Browser liegt danach nur ein Sitzungscookie.
 
+export async function fetchBoothState() {
+  try {
+    return await fetch('/api/booth/status').then((response) => response.json());
+  } catch {
+    return { enabled: false, open: true, pinLength: 4 };
+  }
+}
+
 export async function fetchAdminState() {
   try {
     return await fetch('/api/admin/status').then((response) => response.json());
@@ -15,8 +23,8 @@ export async function lockAdmin() {
   await fetch('/api/admin/lock', { method: 'POST' }).catch(() => {});
 }
 
-async function submitPin(pin) {
-  const response = await fetch('/api/admin/unlock', {
+async function submitPin(pin, endpoint) {
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ pin }),
@@ -33,8 +41,18 @@ async function submitPin(pin) {
  * @param {number} options.pinLength Stellen - danach wird automatisch geprueft
  * @param {boolean} options.dismissible Ob sich das Feld schliessen laesst
  * @param {() => void} options.onSuccess Wird nach erfolgreicher Eingabe gerufen
+ * @param {string} options.endpoint Wohin die Eingabe geprueft wird
+ * @param {string} options.title Ueberschrift ueber den Punkten
+ * @param {string} options.closeHref Ausweg, wenn sich das Feld nicht schliessen laesst
  */
-export function openPinPad({ pinLength = 4, dismissible = true, onSuccess } = {}) {
+export function openPinPad({
+  pinLength = 4,
+  dismissible = true,
+  onSuccess,
+  endpoint = '/api/admin/unlock',
+  title = 'Admin-Zugang',
+  closeHref = '',
+} = {}) {
   const existing = document.querySelector('.pinpad');
   if (existing) return existing;
 
@@ -45,13 +63,12 @@ export function openPinPad({ pinLength = 4, dismissible = true, onSuccess } = {}
   overlay.className = 'pinpad';
   overlay.innerHTML = `
     <div class="pinpad__card" role="dialog" aria-modal="true" aria-label="Admin-Zugang">
-      <p class="pinpad__title">Admin-Zugang</p>
+      <p class="pinpad__title">${title}</p>
       <div class="pinpad__dots" aria-hidden="true"></div>
       <p class="pinpad__error" role="alert"></p>
       <div class="pinpad__keys"></div>
-      ${dismissible
-        ? '<button type="button" class="pinpad__close">Abbrechen</button>'
-        : '<a class="pinpad__close" href="/">Zur Fotobox</a>'}
+      ${dismissible ? '<button type="button" class="pinpad__close">Abbrechen</button>' : ''}
+      ${!dismissible && closeHref ? `<a class="pinpad__close" href="${closeHref}">Zur Fotobox</a>` : ''}
     </div>`;
 
   const card = overlay.querySelector('.pinpad__card');
@@ -72,7 +89,7 @@ export function openPinPad({ pinLength = 4, dismissible = true, onSuccess } = {}
 
   async function check() {
     busy = true;
-    const result = await submitPin(entered);
+    const result = await submitPin(entered, endpoint);
     busy = false;
     if (result.ok) {
       overlay.remove();

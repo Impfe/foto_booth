@@ -7,7 +7,7 @@ import archiver from 'archiver';
 import express from 'express';
 import QRCode from 'qrcode';
 
-import { AdminAccess } from './admin.js';
+import { AdminAccess, BoothGate } from './admin.js';
 import { ROOT, loadBoothConfig, loadServerConfig } from './config.js';
 import { PhotoStore } from './storage.js';
 
@@ -19,6 +19,8 @@ const admin = new AdminAccess({
   loadConfig: loadBoothConfig,
   galleryPassword: server.galleryPassword,
 });
+
+const booth = new BoothGate({ loadConfig: loadBoothConfig });
 
 const app = express();
 app.disable('x-powered-by');
@@ -67,10 +69,12 @@ function escapeHtml(value) {
  * dafuer mit der Information, ob ueberhaupt eine gesetzt ist.
  */
 function publicBoothConfig(req) {
-  const { adminPin, ...rest } = loadBoothConfig();
+  // Weder PIN noch Zugangscode duerfen den Browser je erreichen.
+  const { adminPin, boothPin, ...rest } = loadBoothConfig();
   return {
     ...rest,
     adminRequired: admin.isEnabled,
+    boothLocked: booth.isEnabled,
     // Nur im lokalen Betrieb gesetzt: die Adresse, unter der die Kamera geht.
     // Wer versehentlich den Klartext-Port erwischt, soll das erfahren.
     boothUrl: server.httpPort ? `https://${req.hostname}:${server.port}/` : null,
@@ -78,6 +82,7 @@ function publicBoothConfig(req) {
 }
 
 const requireAdmin = admin.middleware();
+const requireBooth = booth.middleware();
 
 /**
  * Einfache Obergrenze je Absenderadresse.
@@ -113,6 +118,13 @@ const limitUploads = rateLimit({
   message: 'Gerade zu viele Aufnahmen hintereinander. Bitte kurz warten.',
 });
 
+// Codes sollen sich nicht durchprobieren lassen.
+const limitUnlocks = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: 'Zu viele Fehlversuche. Bitte später erneut versuchen.',
+});
+
 const limitMails = rateLimit({
   windowMs: 10 * 60 * 1000,
   max: 30,
@@ -146,12 +158,26 @@ app.post('/api/admin/unlock', (req, res) => {
   res.json({ unlocked: true });
 });
 
+app.get('/api/booth/status', (req, res) => {
+  res.json(booth.status(req));
+});
+
+app.post('/api/booth/unlock', limitUnlocks, (req, res) => {
+  if (!booth.isEnabled) return res.status(409).json({ error: 'Es ist kein Zugangscode eingerichtet.' });
+  const given = String(req.body?.pin ?? '');
+  if (given.length !== booth.pin.length || !booth.isCorrectPin(given)) {
+    return res.status(401).json({ error: 'Falscher Code.' });
+  }
+  booth.setCookie(req, res);
+  res.json({ open: true });
+});
+
 app.post('/api/admin/lock', (_req, res) => {
   admin.clearCookie(res);
   res.json({ unlocked: false });
 });
 
-app.post('/api/photos', limitUploads, async (req, res, next) => {
+app.post('/api/photos', requireBooth, limitUploads, async (req, res, next) => {
   try {
     const { image, kind, filter, shots } = req.body || {};
     const meta = await store.save({ dataUrl: image, kind, filter, shots });
@@ -184,7 +210,7 @@ app.delete('/api/photos/:id', requireAdmin, async (req, res, next) => {
   }
 });
 
-app.post('/api/photos/:id/email', limitMails, async (req, res, next) => {
+app.post('/api/photos/:id/email', requireBooth, limitMails, async (req, res, next) => {
   try {
     const entry = await store.addRecipient(req.params.id, String(req.body?.email ?? ''));
     res.status(201).json({ email: entry.email });

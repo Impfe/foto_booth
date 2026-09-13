@@ -51,7 +51,7 @@ async function start() {
   if (admin.enabled && !admin.unlocked) {
     count.textContent = 'gesperrt';
     if (admin.pinConfigured) {
-      openPinPad({ pinLength: admin.pinLength, dismissible: false, onSuccess: start });
+      openPinPad({ pinLength: admin.pinLength, dismissible: false, closeHref: '/', onSuccess: start });
     } else {
       count.textContent = 'Zugang nur mit Passwort';
     }
@@ -101,7 +101,7 @@ async function start() {
   if (admin.enabled && !admin.unlocked) {
     count.textContent = 'gesperrt';
     if (admin.pinConfigured) {
-      openPinPad({ pinLength: admin.pinLength, dismissible: false, onSuccess: start });
+      openPinPad({ pinLength: admin.pinLength, dismissible: false, closeHref: '/', onSuccess: start });
     } else {
       count.textContent = 'Zugang nur mit Passwort';
     }

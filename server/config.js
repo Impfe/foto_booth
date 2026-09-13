@@ -17,6 +17,7 @@ const DEFAULTS = {
   showQrCode: true,
   kioskMode: false,
   adminPin: '',
+  boothPin: '',
   strip: { style: 'classic', accent: '#c8a25a', ornament: '' },
 };
 
@@ -45,7 +46,12 @@ export function loadBoothConfig() {
   // nicht im Repository stehen soll.
   // Leer gesetzt hebt die PIN aus der Datei ausdruecklich auf.
   if (process.env.ADMIN_PIN !== undefined) merged.adminPin = process.env.ADMIN_PIN;
-  return { ...merged, adminPin: String(merged.adminPin || '') };
+  if (process.env.BOOTH_PIN !== undefined) merged.boothPin = process.env.BOOTH_PIN;
+  return {
+    ...merged,
+    adminPin: String(merged.adminPin || ''),
+    boothPin: String(merged.boothPin || ''),
+  };
 }
 
 /** Server-Einstellungen kommen ausschliesslich aus der Umgebung (.env / Shell). */

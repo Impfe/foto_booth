@@ -29,6 +29,8 @@ sie wie eine native App im Vollbild.
   löschbar, gesammelt als ZIP herunterladbar
 - **Kiosk-Betrieb** – Gäste sehen nur den Auslöser; Galerie, Kameraseite und Ton
   liegen hinter einer PIN
+- **Zugangscode** – unter einer öffentlichen Adresse kommt niemand ohne Code an
+  die Booth; die Seiten für die Gäste bleiben frei
 
 ## Schnellstart
 
@@ -148,6 +150,7 @@ Wird bei jedem Aufruf frisch gelesen, ein Neustart des Servers ist nicht nötig.
 | `showQrCode` | QR-Code nach dem Shooting anzeigen | `true` |
 | `kioskMode` | Bedienelemente vor Gästen verbergen (siehe unten) | `true` |
 | `adminPin` | PIN für den Admin-Zugang; leer = kein Schutz | `"1608"` |
+| `boothPin` | Code zum Öffnen der Booth; leer = offen (siehe unten) | `"1608"` |
 | `strip.style` | Vorlage des Streifens: `classic`, `elegant` oder `midnight` | `"classic"` |
 | `strip.ornament` | Medaillon im Fuß, z. B. `"60"` oder ein Monogramm; leer = schlichte Raute | `""` |
 | `strip.accent` | Akzentfarbe für Streifen **und** Bedienoberfläche | `"#c8a25a"` |
@@ -165,7 +168,35 @@ Wird bei jedem Aufruf frisch gelesen, ein Neustart des Servers ist nicht nötig.
 | `HTTP_PORT` | Klartext-Port für die Gäste-Links, nur wenn HTTPS läuft (Standard 8080) |
 | `PUBLIC_URL` | Feste Adresse für die QR-Codes; leer = aus der Anfrage abgeleitet |
 | `ADMIN_PIN` | Überschreibt `adminPin` aus der `config.json`; leer gesetzt hebt sie auf |
+| `BOOTH_PIN` | Überschreibt `boothPin`; leer gesetzt gibt die Booth frei |
 | `GALLERY_PASSWORD` | Zusätzlicher Passwortschutz (Basic Auth) für Galerie und Export |
+
+## Wer was darf
+
+Drei Ebenen, von außen nach innen:
+
+| | Wofür | Wie |
+| --- | --- | --- |
+| **Offen** | Downloadseiten hinter den QR-Codes, die Bilder selbst | ohne alles |
+| **Zugangscode** (`boothPin`) | Fotografieren, Adresse eintragen | einmal am Gerät eingeben |
+| **Admin-PIN** (`adminPin`) | Galerie, Löschen, ZIP- und CSV-Export | pro Sitzung |
+
+Der **Zugangscode** ist der wichtige Teil, sobald die Booth im Internet steht:
+Ohne ihn könnte jeder, der die Adresse kennt, Fotos hochladen. Beim ersten
+Aufruf erscheint ein Zahlenfeld, danach bleibt das Gerät dreißig Tage offen –
+die Gäste bekommen davon nichts mit.
+
+Das Sitzungsmerkmal wird aus dem Code abgeleitet statt bei jedem Serverstart neu
+gewürfelt. Ein Deploy mitten am Abend sperrt das iPad also nicht aus.
+
+Wichtig ist die Grenze nach außen: Die **Seiten für die Gäste bleiben frei**. Wer
+einen QR-Code scannt, sieht sein Foto ohne jeden Code – alles andere wäre auf
+einer Feier unbrauchbar.
+
+Beide Codes stehen in der `config.json` und dürfen verschieden sein. Sie
+verlassen den Server nie – der Browser bekommt nur die Information, *ob* ein
+Code verlangt wird, und im Erfolgsfall ein Cookie. Nach zehn Fehlversuchen je
+Adresse ist für eine Viertelstunde Schluss.
 
 ## Kiosk-Betrieb und Admin-Zugang
 

@@ -1,5 +1,5 @@
 // Ablaufsteuerung der Fotobox: Vorschau -> Countdown -> Serie -> Streifen -> QR-Code.
-import { fetchAdminState, lockAdmin, openPinPad } from './admin.js';
+import { fetchAdminState, fetchBoothState, lockAdmin, openPinPad } from './admin.js';
 import { Camera } from './camera.js';
 import { FILTERS, applyFilter, getFilter } from './filters.js';
 import { composeStrip } from './strip.js';
@@ -406,6 +406,26 @@ async function relock() {
   updateChrome();
 }
 
+/**
+ * Zugangscode vor der Booth. Unter einer oeffentlichen Adresse koennte sonst
+ * jeder, der sie kennt, Fotos hochladen. Einmal am Abend eingeben, danach
+ * bleibt das Geraet offen.
+ */
+async function ensureBoothOpen() {
+  const gate = await fetchBoothState();
+  if (!gate.enabled || gate.open) return;
+  els.hint.textContent = 'Zugangscode eingeben';
+  await new Promise((resolve) => {
+    openPinPad({
+      pinLength: gate.pinLength,
+      dismissible: false,
+      endpoint: '/api/booth/unlock',
+      title: 'Zugangscode',
+      onSuccess: resolve,
+    });
+  });
+}
+
 async function openAdmin() {
   if (!state.admin.pinConfigured) {
     window.location.href = '/gallery';
@@ -436,6 +456,8 @@ async function init() {
     setState('error');
     return;
   }
+
+  await ensureBoothOpen();
 
   state.filterId = state.config.defaultFilter || 'original';
   // Der Akzentton des Streifens faerbt auch die Bedienoberflaeche.

@@ -1,6 +1,8 @@
 import crypto from 'node:crypto';
 
 const COOKIE = 'booth_admin';
+const BOOTH_COOKIE = 'booth_pass';
+const BOOTH_DAYS = 30;
 const SESSION_SECONDS = 8 * 60 * 60;
 const ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
 const MAX_ATTEMPTS = 10;
@@ -129,3 +131,67 @@ export class AdminAccess {
 }
 
 export const ADMIN_COOKIE = COOKIE;
+
+/**
+ * Schloss vor der Booth selbst.
+ *
+ * Unter einer oeffentlichen Adresse koennte sonst jeder, der sie kennt, Fotos
+ * hochladen. Die Veranstalterin gibt den Code einmal auf dem iPad ein, danach
+ * bleibt das Geraet offen - Gaeste bekommen davon nichts mit.
+ *
+ * Anders als beim Admin-Zugang wird das Token aus der PIN abgeleitet statt bei
+ * jedem Start neu gewuerfelt. Ein Deploy mitten am Abend soll das iPad nicht
+ * aussperren. Wer den abgeleiteten Wert kennt, kennt ohnehin die PIN.
+ */
+export class BoothGate {
+  constructor({ loadConfig }) {
+    this.loadConfig = loadConfig;
+  }
+
+  get pin() {
+    return this.loadConfig().boothPin || '';
+  }
+
+  /** Ohne PIN bleibt die Booth offen - so laeuft der lokale Betrieb wie bisher. */
+  get isEnabled() {
+    return Boolean(this.pin);
+  }
+
+  get token() {
+    return crypto.createHash('sha256').update(`fotobox-booth:${this.pin}`).digest('hex');
+  }
+
+  isOpen(req) {
+    if (!this.isEnabled) return true;
+    const given = parseCookies(req)[BOOTH_COOKIE];
+    return Boolean(given) && safeEqual(given, this.token);
+  }
+
+  isCorrectPin(given) {
+    return this.isEnabled && safeEqual(given, this.pin);
+  }
+
+  setCookie(req, res) {
+    const parts = [
+      `${BOOTH_COOKIE}=${this.token}`,
+      'Path=/',
+      `Max-Age=${BOOTH_DAYS * 24 * 60 * 60}`,
+      'HttpOnly',
+      'SameSite=Lax',
+    ];
+    if (req.protocol === 'https') parts.push('Secure');
+    res.setHeader('Set-Cookie', parts.join('; '));
+  }
+
+  status(req) {
+    return { enabled: this.isEnabled, open: this.isOpen(req), pinLength: this.pin.length };
+  }
+
+  /** Schuetzt alles, was Daten anlegt - nicht aber die Seiten fuer die Gaeste. */
+  middleware() {
+    return (req, res, next) => {
+      if (this.isOpen(req)) return next();
+      return res.status(401).json({ error: 'Die Fotobox ist gesperrt.' });
+    };
+  }
+}
